@@ -2,15 +2,16 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 
 export const verifyToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // Token'ı hem cookie'den hem de Authorization header'ından kontrol et
-    let token = req.cookies.token;
+    // Önce Authorization header'ından token'ı kontrol et (öncelik ver)
+    let token = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7); // "Bearer " kısmını çıkar
+    }
     
-    // Cookie'de token yoksa Authorization header'ından kontrol et (mobil uygulamalar için)
+    // Authorization header'ında token yoksa cookie'den kontrol et
     if (!token) {
-        const authHeader = req.headers.authorization;
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            token = authHeader.substring(7); // "Bearer " kısmını çıkar
-        }
+        token = req.cookies.token;
     }
     
     if (!token) {

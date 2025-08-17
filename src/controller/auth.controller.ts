@@ -1,9 +1,10 @@
 import { User } from "../models/user.model";
 import bcrypt from "bcryptjs";
-import { generateTokenAndSetCookie } from '../utils/generateTokenAndSetCookie';
+import { generateTokenAndSetCookie, generateRefreshToken, generateAccessToken } from '../utils/generateTokenAndSetCookie';
 //import { sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/email";
 import { Request, Response } from "express";
 import crypto from "crypto"
+import jwt from "jsonwebtoken"
 
 interface AuthRequest extends Request {
     userId?: string;
@@ -26,27 +27,22 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const hashedPassword = await bcrypt.hash(password, 10);
-        const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
         const user = new User({
             name,
             email,
             password: hashedPassword,
-            verificationToken,
-            verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000,
+            verificationCode,
+            verificationCodeExpiresAt: Date.now() + 24 * 60 * 60 * 1000,
         })
         await user.save();
 
-        //jwt
-        const token = generateTokenAndSetCookie(res, user._id.toString())
-
         //send verification email
-        console.log(`🔑 Verification Code for ${user.email}: ${verificationToken}`);
-        // await sendVerificationEmail(user.email,verificationToken);
+        // await sendVerificationEmail(user.email,verificationCode);
 
         res.status(201).json({
             success: true,
-            message: "User created successfully",
-            token,
+            message: "User created successfully. Please verify your email before logging in.",
             user: {
                 ...user.toObject(),
                 password: undefined,
@@ -54,7 +50,6 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         })
 
     } catch (error) {
-        console.error("Error signing up:", error);
         res.status(500).json({
             success: false,
             message: "Internal Server Error"
@@ -66,17 +61,16 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
     const { code } = req.body
     try {
-        const user = await User.findOne({ verificationToken: code, verificationTokenExpiresAt: { $gt: Date.now() } })
+        const user = await User.findOne({ verificationCode: code, verificationCodeExpiresAt: { $gt: Date.now() } })
         if (!user) {
             res.status(400).json({ success: false, message: "Invalid or expired verification code" })
             return;
         }
         user.isVerified = true;
-        user.verificationToken = undefined;
-        user.verificationTokenExpiresAt = undefined;
+        user.verificationCode = undefined;
+        user.verificationCodeExpiresAt = undefined;
         await user.save();
 
-        console.log(`🎉 Welcome ${user.name}! Email verification successful.`);
         // let emailSent = false;
         // try {
         //     await sendWelcomeEmail(user.email,user.name);
@@ -95,7 +89,6 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
         })
 
     } catch (error) {
-        console.error("Error verifying email:", error);
         res.status(500).json({
             success: false,
             message: "Internal Server Error"
@@ -106,11 +99,71 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
 export const login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body
     try {
+        // Önce kullanıcının zaten giriş yapmış olup olmadığını kontrol et
+        const authHeader = req.headers.authorization;
+        let token = null;
+        
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+        }
+        
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+                if (decoded && decoded.userId) {
+                    // Kullanıcının aktif refresh token'ı var mı kontrol et
+                    const existingUser = await User.findById(decoded.userId);
+                    if (existingUser && existingUser.refreshToken && existingUser.refreshTokenExpiresAt && existingUser.refreshTokenExpiresAt > new Date()) {
+                        res.status(400).json({ 
+                            success: false, 
+                            message: "You are already logged in. Please logout first." 
+                        });
+                        return;
+                    }
+                }
+            } catch (error) {
+                // Token geçersizse devam et
+            }
+        }
+
+        // Kullanıcıyı email ile bul
         const user = await User.findOne({ email })
         if (!user) {
             res.status(400).json({ success: false, message: "User not found" })
             return;
         }
+
+        // Kullanıcının zaten aktif session'ı var mı kontrol et
+        console.log('Login check - User refreshToken:', user.refreshToken);
+        console.log('Login check - User refreshTokenExpiresAt:', user.refreshTokenExpiresAt);
+        
+        if (user.refreshToken && user.refreshToken !== null && user.refreshToken !== 'null' && user.refreshTokenExpiresAt) {
+            const now = new Date();
+            const tokenExpiry = new Date(user.refreshTokenExpiresAt);
+            
+            console.log('Login check - Now:', now);
+            console.log('Login check - Token expiry:', tokenExpiry);
+            console.log('Login check - Is token expired:', tokenExpiry <= now);
+            
+            if (tokenExpiry > now) {
+                console.log('Login blocked - Active session exists for user:', user.email);
+                res.status(400).json({ 
+                    success: false, 
+                    message: "You are already logged in. Please logout first." 
+                });
+                return;
+            } else {
+                console.log('Login allowed - Expired session for user:', user.email);
+                // Expired token'ları temizle
+                user.refreshToken = null;
+                user.refreshTokenExpiresAt = null;
+                await user.save();
+                console.log('Login - Expired tokens cleaned for user:', user.email);
+            }
+        } else {
+            console.log('Login allowed - No active session for user:', user.email);
+        }
+
         const isPasswordCorrect = await bcrypt.compare(password, user.password)
         if (!isPasswordCorrect) {
             res.status(400).json({ success: false, message: "Invalid password" })
@@ -122,7 +175,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        generateTokenAndSetCookie(res, user._id.toString())
+        // Token ve refresh token oluştur
+        const newToken = generateTokenAndSetCookie(res, user._id.toString());
+        const refreshTokenValue = generateRefreshToken(user._id.toString());
+        user.refreshToken = refreshTokenValue;
+        user.refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 gün
 
         user.lastLogin = new Date();
         await user.save();
@@ -130,13 +187,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         res.status(200).json({
             success: true,
             message: "Login successful",
+            token: newToken,
+            refreshToken: user.refreshToken,
             user: {
                 ...user.toObject(),
                 password: undefined,
             }
         })
     } catch (error) {
-        console.error("Error logging in:", error);
         res.status(500).json({
             success: false,
             message: "Internal Server Error"
@@ -145,11 +203,52 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 }
 
 export const logout = async (req: Request, res: Response) => {
-    res.clearCookie("token");
-    res.status(200).json({
-        success: true,
-        message: "Logged out successfully"
-    })
+    try {
+        // Token'dan kullanıcı ID'sini al
+        const authHeader = req.headers.authorization;
+        let token = null;
+        
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+        }
+
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+                if (decoded && decoded.userId) {
+                    // Kullanıcının refresh token'ını temizle - daha güçlü yöntem
+                    const result = await User.findByIdAndUpdate(decoded.userId, {
+                        $set: {
+                            refreshToken: null,
+                            refreshTokenExpiresAt: null
+                        }
+                    }, { new: true });
+                    
+                    console.log('Logout - User updated:', result ? 'Success' : 'User not found');
+                    
+                    // Ek kontrol - alanların gerçekten temizlendiğini doğrula
+                    const verifyUser = await User.findById(decoded.userId);
+                    console.log('Logout - Verification - refreshToken:', verifyUser?.refreshToken);
+                    console.log('Logout - Verification - refreshTokenExpiresAt:', verifyUser?.refreshTokenExpiresAt);
+                }
+            } catch (error) {
+                console.error('Logout - Token verification error:', error);
+            }
+        } else {
+            console.log('Logout - No token provided');
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Logged out successfully"
+        })
+    } catch (error) {
+        console.error('Logout - General error:', error);
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        })
+    }
 }
 
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
@@ -170,8 +269,9 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
         res.status(200).json({
             success:true,
-            message:"Password reset message sent",
-            resetToken
+            message: "Password reset token generated",
+            resetToken: resetToken,
+            expiresIn: "1 hour"
         })
         
     } catch (error) {
@@ -184,9 +284,14 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { token } = req.params
-        const { password } = req.body
-        const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpiresAt: { $gt: Date.now() } })
+        const { resetToken, password } = req.body
+        
+        if (!resetToken || !password) {
+            res.status(400).json({ success: false, message: "Reset token and password are required" })
+            return;
+        }
+        
+        const user = await User.findOne({ resetPasswordToken: resetToken, resetPasswordExpiresAt: { $gt: Date.now() } })
         if (!user) {
             res.status(400).json({ success: false, message: "Invalid or expired reset password token" })
             return;
@@ -196,11 +301,24 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
         user.password = hashedPassword;
         user.resetPasswordToken = undefined;
         user.resetPasswordExpiresAt = undefined;
+        
+        // Otomatik login
+        const token = generateTokenAndSetCookie(res, user._id.toString());
+        const refreshTokenValue = generateRefreshToken(user._id.toString());
+        user.refreshToken = refreshTokenValue;
+        user.refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        
         await user.save();
 
         res.status(200).json({
             success: true,
-            message: "Password reset successful"
+            message: "Password reset successful",
+            token: token,
+            refreshToken: refreshTokenValue,
+            user: {
+                ...user.toObject(),
+                password: undefined,
+            }
         })
     } catch (error) {
         res.status(500).json({
@@ -226,6 +344,156 @@ export const checkAuth = async (req: AuthRequest, res: Response): Promise<void> 
             success: false,
             message: "Internal Server Error"
         })
+    }
+}
+
+// Refresh token endpoint'i
+export const refreshToken = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { refreshToken: clientRefreshToken } = req.body;
+        
+        if (!clientRefreshToken) {
+            res.status(400).json({ success: false, message: "Refresh token is required" });
+            return;
+        }
+
+        // Refresh token'ı doğrula
+        const decoded = jwt.verify(clientRefreshToken, process.env.JWT_SECRET as string) as any;
+        if (!decoded) {
+            res.status(401).json({ success: false, message: "Invalid refresh token" });
+            return;
+        }
+
+        // Kullanıcıyı bul ve refresh token'ı kontrol et
+        const user = await User.findById(decoded.userId);
+        if (!user || user.refreshToken !== clientRefreshToken || (user.refreshTokenExpiresAt && user.refreshTokenExpiresAt < new Date())) {
+            res.status(401).json({ success: false, message: "Invalid or expired refresh token" });
+            return;
+        }
+
+        // Yeni access token oluştur
+        const newAccessToken = generateAccessToken(user._id.toString());
+        
+        res.status(200).json({
+            success: true,
+            message: "Token refreshed successfully",
+            accessToken: newAccessToken,
+            user: {
+                ...user.toObject(),
+                password: undefined,
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
+    }
+}
+
+// Mevcut şifre ile şifre değiştirme
+export const changePassword = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        
+        if (!currentPassword || !newPassword) {
+            res.status(400).json({ success: false, message: "Current password and new password are required" });
+            return;
+        }
+
+        const user = await User.findById(req.userId);
+        if (!user) {
+            res.status(404).json({ success: false, message: "User not found" });
+            return;
+        }
+
+        // Mevcut şifreyi kontrol et
+        const isCurrentPasswordCorrect = await bcrypt.compare(currentPassword, user.password);
+        if (!isCurrentPasswordCorrect) {
+            res.status(400).json({ success: false, message: "Current password is incorrect" });
+            return;
+        }
+
+        // Yeni şifreyi hash'le
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedNewPassword;
+        
+        // Yeni token oluştur
+        const token = generateTokenAndSetCookie(res, user._id.toString());
+        const refreshTokenValue = generateRefreshToken(user._id.toString());
+        user.refreshToken = refreshTokenValue;
+        user.refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Password changed successfully",
+            token: token,
+            refreshToken: refreshTokenValue,
+            user: {
+                ...user.toObject(),
+                password: undefined,
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
+    }
+}
+
+// Manuel token temizleme endpoint'i (sadece development için)
+export const clearAllTokens = async (req: Request, res: Response) => {
+    try {
+        // Geçici olarak development kontrolünü kaldırıyoruz
+        // if (process.env.NODE_ENV !== 'development') {
+        //     res.status(403).json({ success: false, message: "This endpoint is only available in development mode" });
+        //     return;
+        // }
+
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ success: false, message: "Email is required" });
+            return;
+        }
+
+        const result = await User.findOneAndUpdate(
+            { email },
+            {
+                $set: {
+                    refreshToken: null,
+                    refreshTokenExpiresAt: null
+                }
+            },
+            { new: true }
+        );
+
+        if (!result) {
+            res.status(404).json({ success: false, message: "User not found" });
+            return;
+        }
+
+        console.log('Manual token clear - User:', result.email);
+        console.log('Manual token clear - refreshToken:', result.refreshToken);
+        console.log('Manual token clear - refreshTokenExpiresAt:', result.refreshTokenExpiresAt);
+
+        res.status(200).json({
+            success: true,
+            message: "All tokens cleared for user",
+            user: {
+                email: result.email,
+                refreshToken: result.refreshToken,
+                refreshTokenExpiresAt: result.refreshTokenExpiresAt
+            }
+        });
+    } catch (error) {
+        console.error('Manual token clear error:', error);
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
     }
 }
 

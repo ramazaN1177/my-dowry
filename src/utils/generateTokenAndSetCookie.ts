@@ -4,13 +4,17 @@ import { Response } from "express";
 export const generateTokenAndSetCookie = (res: Response, userId: string) => {
     const token = jwt.sign({userId},process.env.JWT_SECRET as string,{expiresIn:"7d"});
 
-    res.cookie("token",token,{
-        httpOnly:true,
-        secure : process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
+    // Authorization header'ı set et
     res.set('Authorization',`Bearer ${token}`);
     return token;
+}
+
+// Mobil uygulamalar için refresh token oluştur
+export const generateRefreshToken = (userId: string) => {
+    return jwt.sign({userId}, process.env.JWT_SECRET as string, {expiresIn: "30d"});
+}
+
+// Access token oluştur (kısa süreli)
+export const generateAccessToken = (userId: string) => {
+    return jwt.sign({userId}, process.env.JWT_SECRET as string, {expiresIn: "15m"});
 }
