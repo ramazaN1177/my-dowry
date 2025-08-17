@@ -37,21 +37,12 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         })
         await user.save();
 
-        // Token ve refresh token oluştur
-        const token = generateTokenAndSetCookie(res, user._id.toString());
-        const refreshTokenValue = generateRefreshToken(user._id.toString());
-        user.refreshToken = refreshTokenValue;
-        user.refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 gün
-        await user.save();
-
         //send verification email
         // await sendVerificationEmail(user.email,verificationCode);
 
         res.status(201).json({
             success: true,
-            message: "User created successfully",
-            token,
-            refreshToken: user.refreshToken,
+            message: "User created successfully. Please verify your email before logging in.",
             user: {
                 ...user.toObject(),
                 password: undefined,
