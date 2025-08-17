@@ -99,69 +99,11 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
 export const login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body
     try {
-        // Önce kullanıcının zaten giriş yapmış olup olmadığını kontrol et
-        const authHeader = req.headers.authorization;
-        let token = null;
-        
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            token = authHeader.substring(7);
-        }
-        
-        if (token) {
-            try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
-                if (decoded && decoded.userId) {
-                    // Kullanıcının aktif refresh token'ı var mı kontrol et
-                    const existingUser = await User.findById(decoded.userId);
-                    if (existingUser && existingUser.refreshToken && existingUser.refreshTokenExpiresAt && existingUser.refreshTokenExpiresAt > new Date()) {
-                        res.status(400).json({ 
-                            success: false, 
-                            message: "You are already logged in. Please logout first." 
-                        });
-                        return;
-                    }
-                }
-            } catch (error) {
-                // Token geçersizse devam et
-            }
-        }
-
         // Kullanıcıyı email ile bul
         const user = await User.findOne({ email })
         if (!user) {
             res.status(400).json({ success: false, message: "User not found" })
             return;
-        }
-
-        // Kullanıcının zaten aktif session'ı var mı kontrol et
-        console.log('Login check - User refreshToken:', user.refreshToken);
-        console.log('Login check - User refreshTokenExpiresAt:', user.refreshTokenExpiresAt);
-        
-        if (user.refreshToken && user.refreshToken !== null && user.refreshToken !== 'null' && user.refreshTokenExpiresAt) {
-            const now = new Date();
-            const tokenExpiry = new Date(user.refreshTokenExpiresAt);
-            
-            console.log('Login check - Now:', now);
-            console.log('Login check - Token expiry:', tokenExpiry);
-            console.log('Login check - Is token expired:', tokenExpiry <= now);
-            
-            if (tokenExpiry > now) {
-                console.log('Login blocked - Active session exists for user:', user.email);
-                res.status(400).json({ 
-                    success: false, 
-                    message: "You are already logged in. Please logout first." 
-                });
-                return;
-            } else {
-                console.log('Login allowed - Expired session for user:', user.email);
-                // Expired token'ları temizle
-                user.refreshToken = null;
-                user.refreshTokenExpiresAt = null;
-                await user.save();
-                console.log('Login - Expired tokens cleaned for user:', user.email);
-            }
-        } else {
-            console.log('Login allowed - No active session for user:', user.email);
         }
 
         const isPasswordCorrect = await bcrypt.compare(password, user.password)
