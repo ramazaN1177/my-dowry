@@ -1,5 +1,5 @@
 import express from 'express';
-import { login, signup, verifyEmail, logout,resetPassword,checkAuth,forgotPassword,refreshToken,changePassword } from '../controller/auth.controller';
+import { login, signup, verifyEmail, logout,resetPassword,checkAuth,forgotPassword,refreshToken,changePassword, clearAllTokens } from '../controller/auth.controller';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
@@ -30,5 +30,8 @@ router.post('/refresh-token', refreshToken);
 
 // Change password
 router.post('/change-password', verifyToken, changePassword);
+
+// Manual token clear (development only)
+router.post('/clear-tokens', clearAllTokens);
 
 export default router;

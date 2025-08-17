@@ -27,13 +27,13 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const hashedPassword = await bcrypt.hash(password, 10);
-        const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
         const user = new User({
             name,
             email,
             password: hashedPassword,
-            verificationToken,
-            verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000,
+            verificationCode,
+            verificationCodeExpiresAt: Date.now() + 24 * 60 * 60 * 1000,
         })
         await user.save();
 
@@ -45,7 +45,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         await user.save();
 
         //send verification email
-        // await sendVerificationEmail(user.email,verificationToken);
+        // await sendVerificationEmail(user.email,verificationCode);
 
         res.status(201).json({
             success: true,
@@ -70,14 +70,14 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
     const { code } = req.body
     try {
-        const user = await User.findOne({ verificationToken: code, verificationTokenExpiresAt: { $gt: Date.now() } })
+        const user = await User.findOne({ verificationCode: code, verificationCodeExpiresAt: { $gt: Date.now() } })
         if (!user) {
             res.status(400).json({ success: false, message: "Invalid or expired verification code" })
             return;
         }
         user.isVerified = true;
-        user.verificationToken = undefined;
-        user.verificationTokenExpiresAt = undefined;
+        user.verificationCode = undefined;
+        user.verificationCodeExpiresAt = undefined;
         await user.save();
 
         // let emailSent = false;
@@ -118,24 +118,61 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         
         if (token) {
             try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-                if (decoded) {
-                    res.status(400).json({ 
-                        success: false, 
-                        message: "You are already logged in. Please logout first." 
-                    });
-                    return;
+                const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+                if (decoded && decoded.userId) {
+                    // Kullanıcının aktif refresh token'ı var mı kontrol et
+                    const existingUser = await User.findById(decoded.userId);
+                    if (existingUser && existingUser.refreshToken && existingUser.refreshTokenExpiresAt && existingUser.refreshTokenExpiresAt > new Date()) {
+                        res.status(400).json({ 
+                            success: false, 
+                            message: "You are already logged in. Please logout first." 
+                        });
+                        return;
+                    }
                 }
             } catch (error) {
                 // Token geçersizse devam et
             }
         }
 
+        // Kullanıcıyı email ile bul
         const user = await User.findOne({ email })
         if (!user) {
             res.status(400).json({ success: false, message: "User not found" })
             return;
         }
+
+        // Kullanıcının zaten aktif session'ı var mı kontrol et
+        console.log('Login check - User refreshToken:', user.refreshToken);
+        console.log('Login check - User refreshTokenExpiresAt:', user.refreshTokenExpiresAt);
+        
+        if (user.refreshToken && user.refreshToken !== null && user.refreshToken !== 'null' && user.refreshTokenExpiresAt) {
+            const now = new Date();
+            const tokenExpiry = new Date(user.refreshTokenExpiresAt);
+            
+            console.log('Login check - Now:', now);
+            console.log('Login check - Token expiry:', tokenExpiry);
+            console.log('Login check - Is token expired:', tokenExpiry <= now);
+            
+            if (tokenExpiry > now) {
+                console.log('Login blocked - Active session exists for user:', user.email);
+                res.status(400).json({ 
+                    success: false, 
+                    message: "You are already logged in. Please logout first." 
+                });
+                return;
+            } else {
+                console.log('Login allowed - Expired session for user:', user.email);
+                // Expired token'ları temizle
+                user.refreshToken = null;
+                user.refreshTokenExpiresAt = null;
+                await user.save();
+                console.log('Login - Expired tokens cleaned for user:', user.email);
+            }
+        } else {
+            console.log('Login allowed - No active session for user:', user.email);
+        }
+
         const isPasswordCorrect = await bcrypt.compare(password, user.password)
         if (!isPasswordCorrect) {
             res.status(400).json({ success: false, message: "Invalid password" })
@@ -188,25 +225,34 @@ export const logout = async (req: Request, res: Response) => {
             try {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
                 if (decoded && decoded.userId) {
-                    // Kullanıcının refresh token'ını temizle
-                    await User.findByIdAndUpdate(decoded.userId, {
-                        refreshToken: undefined,
-                        refreshTokenExpiresAt: undefined
-                    });
+                    // Kullanıcının refresh token'ını temizle - daha güçlü yöntem
+                    const result = await User.findByIdAndUpdate(decoded.userId, {
+                        $set: {
+                            refreshToken: null,
+                            refreshTokenExpiresAt: null
+                        }
+                    }, { new: true });
+                    
+                    console.log('Logout - User updated:', result ? 'Success' : 'User not found');
+                    
+                    // Ek kontrol - alanların gerçekten temizlendiğini doğrula
+                    const verifyUser = await User.findById(decoded.userId);
+                    console.log('Logout - Verification - refreshToken:', verifyUser?.refreshToken);
+                    console.log('Logout - Verification - refreshTokenExpiresAt:', verifyUser?.refreshTokenExpiresAt);
                 }
             } catch (error) {
-                // Token geçersizse devam et
+                console.error('Logout - Token verification error:', error);
             }
+        } else {
+            console.log('Logout - No token provided');
         }
 
-        // Authorization header'ı temizle
-        res.removeHeader('Authorization');
-        
         res.status(200).json({
             success: true,
             message: "Logged out successfully"
         })
     } catch (error) {
+        console.error('Logout - General error:', error);
         res.status(500).json({
             success: false,
             message: "Internal Server Error"
@@ -400,6 +446,59 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
             }
         });
     } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
+    }
+}
+
+// Manuel token temizleme endpoint'i (sadece development için)
+export const clearAllTokens = async (req: Request, res: Response) => {
+    try {
+        // Geçici olarak development kontrolünü kaldırıyoruz
+        // if (process.env.NODE_ENV !== 'development') {
+        //     res.status(403).json({ success: false, message: "This endpoint is only available in development mode" });
+        //     return;
+        // }
+
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ success: false, message: "Email is required" });
+            return;
+        }
+
+        const result = await User.findOneAndUpdate(
+            { email },
+            {
+                $set: {
+                    refreshToken: null,
+                    refreshTokenExpiresAt: null
+                }
+            },
+            { new: true }
+        );
+
+        if (!result) {
+            res.status(404).json({ success: false, message: "User not found" });
+            return;
+        }
+
+        console.log('Manual token clear - User:', result.email);
+        console.log('Manual token clear - refreshToken:', result.refreshToken);
+        console.log('Manual token clear - refreshTokenExpiresAt:', result.refreshTokenExpiresAt);
+
+        res.status(200).json({
+            success: true,
+            message: "All tokens cleared for user",
+            user: {
+                email: result.email,
+                refreshToken: result.refreshToken,
+                refreshTokenExpiresAt: result.refreshTokenExpiresAt
+            }
+        });
+    } catch (error) {
+        console.error('Manual token clear error:', error);
         res.status(500).json({
             success: false,
             message: "Internal Server Error"

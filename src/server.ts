@@ -4,9 +4,15 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import connectDB from './db/connectDB';
 import authRoutes from './routes/auth.route';
+import dowryRoutes from './routes/dowry.routes';
 
 // Load environment variables
 dotenv.config();
+
+// Set default NODE_ENV to development if not set
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development';
+}
 
 const app: Application = express();
 const PORT: number = parseInt(process.env.PORT || '5000', 10);
@@ -31,10 +37,11 @@ app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/dowry', dowryRoutes);
 
 // Basic health check route
 app.get('/', (req: Request, res: Response) => {
-  res.json({ message: 'LingoVault Backend API is running!' });
+  res.json({ message: 'MyDowry Backend API is running!' });
 });
 
 // Start server
