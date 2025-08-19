@@ -140,6 +140,11 @@ router.post('/create', verifyToken, createDowry);
  *         schema:
  *           type: string
  *       - in: query
+ *         name: search
+ *         description: Search in name and description fields
+ *         schema:
+ *           type: string
+ *       - in: query
  *         name: page
  *         description: Page number
  *         schema:

@@ -79,7 +79,7 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        const { status, category, page = 1, limit = 10 } = req.query;
+        const { status, category, search, page = 1, limit = 10 } = req.query;
         
         // Validate status if provided
         if (status && !['purchased', 'not_purchased'].includes(status as string)) {
@@ -97,6 +97,13 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
         }
         if (category) {
             filter.dowryCategory = category;
+        }
+        if (search) {
+            // Search in name and description fields (case-insensitive)
+            filter.$or = [
+                { name: { $regex: search as string, $options: 'i' } },
+                { description: { $regex: search as string, $options: 'i' } }
+            ];
         }
 
         // Calculate pagination
