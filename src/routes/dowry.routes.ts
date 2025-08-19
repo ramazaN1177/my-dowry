@@ -1,5 +1,5 @@
 import express from 'express';
-import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry } from '../controller/dowry.controller';
+import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, getCategories } from '../controller/dowry.controller';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
@@ -47,6 +47,35 @@ const router = express.Router();
  *           format: date-time
  *           example: "2023-01-01T00:00:00.000Z"
  */
+
+/**
+ * @swagger
+ * /api/dowry/categories:
+ *   get:
+ *     summary: Get all available categories
+ *     description: Get all predefined dowry categories
+ *     tags: [Dowry]
+ *     responses:
+ *       200:
+ *         description: Categories retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Categories fetched successfully"
+ *                 categories:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["MUTFAK", "YEMEK ODASI", "YATAK ODASI", "SALON", "BANYO", "ÇOCUK ODASI", "OFİS", "KÜTÜPHANE VE NAMAZ ODASI", "DİĞER"]
+ */
+router.get('/categories', getCategories);
 
 /**
  * @swagger
