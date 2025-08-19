@@ -1,5 +1,5 @@
 import express from 'express';
-import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry } from '../controller/dowry.controller';
+import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, updateDowryStatus } from '../controller/dowry.controller';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
@@ -14,27 +14,28 @@ const router = express.Router();
  *         _id:
  *           type: string
  *           example: "507f1f77bcf86cd799439011"
- *         title:
+ *         name:
  *           type: string
  *           example: "Gold Necklace"
  *         description:
  *           type: string
  *           example: "Beautiful gold necklace with precious stones"
- *         category:
+ *         dowryCategory:
  *           type: string
- *           enum: [jewelry, electronics, furniture, clothing, other]
  *           example: "jewelry"
- *         value:
+ *         dowryPrice:
  *           type: number
  *           example: 5000
- *         images:
- *           type: array
- *           items:
- *             type: string
- *           example: ["image1.jpg", "image2.jpg"]
- *         notes:
+ *         dowryImage:
  *           type: string
- *           example: "Family heirloom"
+ *           example: "image1.jpg"
+ *         dowryLocation:
+ *           type: string
+ *           example: "Istanbul, Turkey"
+ *         status:
+ *           type: string
+ *           enum: [purchased, not_purchased]
+ *           example: "not_purchased"
  *         userId:
  *           type: string
  *           example: "507f1f77bcf86cd799439011"
@@ -64,31 +65,34 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - title
+ *               - name
  *               - description
- *               - category
+ *               - dowryCategory
+ *               - dowryPrice
+ *               - dowryImage
  *             properties:
- *               title:
+ *               name:
  *                 type: string
  *                 example: "Gold Necklace"
  *               description:
  *                 type: string
  *                 example: "Beautiful gold necklace with precious stones"
- *               category:
+ *               dowryCategory:
  *                 type: string
- *                 enum: [jewelry, electronics, furniture, clothing, other]
  *                 example: "jewelry"
- *               value:
+ *               dowryPrice:
  *                 type: number
  *                 example: 5000
- *               images:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: ["image1.jpg", "image2.jpg"]
- *               notes:
+ *               dowryImage:
  *                 type: string
- *                 example: "Family heirloom"
+ *                 example: "image1.jpg"
+ *               dowryLocation:
+ *                 type: string
+ *                 example: "Istanbul, Turkey"
+ *               status:
+ *                 type: string
+ *                 enum: [purchased, not_purchased]
+ *                 example: "not_purchased"
  *     responses:
  *       201:
  *         description: Dowry created successfully
@@ -118,18 +122,23 @@ router.post('/create', verifyToken, createDowry);
  * @swagger
  * /api/dowry/get:
  *   get:
- *     summary: Get all dowries
- *     description: Get all dowries for the authenticated user
+ *     summary: Get all dowries with filters
+ *     description: Get all dowries for the authenticated user with optional filtering and pagination
  *     tags: [Dowry]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: category
- *         description: Filter by category
+ *         name: status
+ *         description: Filter by purchase status
  *         schema:
  *           type: string
- *           enum: [jewelry, electronics, furniture, clothing, other]
+ *           enum: [purchased, not_purchased]
+ *       - in: query
+ *         name: category
+ *         description: Filter by dowry category
+ *         schema:
+ *           type: string
  *       - in: query
  *         name: page
  *         description: Page number
@@ -153,19 +162,34 @@ router.post('/create', verifyToken, createDowry);
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Dowries fetched successfully"
  *                 dowries:
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Dowry'
- *                 total:
- *                   type: integer
- *                   example: 25
- *                 page:
- *                   type: integer
- *                   example: 1
- *                 pages:
- *                   type: integer
- *                   example: 3
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 25
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     pages:
+ *                       type: integer
+ *                       example: 3
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get('/get', verifyToken, getDowries);
 
@@ -230,27 +254,28 @@ router.get('/get/:id', verifyToken, getDowryById);
  *           schema:
  *             type: object
  *             properties:
- *               title:
+ *               name:
  *                 type: string
  *                 example: "Updated Gold Necklace"
  *               description:
  *                 type: string
  *                 example: "Updated description"
- *               category:
+ *               dowryCategory:
  *                 type: string
- *                 enum: [jewelry, electronics, furniture, clothing, other]
  *                 example: "jewelry"
- *               value:
+ *               dowryPrice:
  *                 type: number
  *                 example: 6000
- *               images:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: ["image1.jpg", "image2.jpg"]
- *               notes:
+ *               dowryImage:
  *                 type: string
- *                 example: "Updated notes"
+ *                 example: "image1.jpg"
+ *               dowryLocation:
+ *                 type: string
+ *                 example: "Istanbul, Turkey"
+ *               status:
+ *                 type: string
+ *                 enum: [purchased, not_purchased]
+ *                 example: "purchased"
  *     responses:
  *       200:
  *         description: Dowry updated successfully
@@ -275,6 +300,66 @@ router.get('/get/:id', verifyToken, getDowryById);
  *               $ref: '#/components/schemas/Error'
  */
 router.put('/update/:id', verifyToken, updateDowry);
+
+/**
+ * @swagger
+ * /api/dowry/status/{id}:
+ *   patch:
+ *     summary: Update dowry status
+ *     description: Update the purchase status of a specific dowry
+ *     tags: [Dowry]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Dowry ID
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [purchased, not_purchased]
+ *                 example: "purchased"
+ *     responses:
+ *       200:
+ *         description: Dowry status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Dowry status updated to purchased successfully"
+ *                 dowry:
+ *                   $ref: '#/components/schemas/Dowry'
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Dowry not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.patch('/status/:id', verifyToken, updateDowryStatus);
 
 /**
  * @swagger

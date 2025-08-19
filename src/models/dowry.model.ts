@@ -25,6 +25,12 @@ const dowrySchema = new mongoose.Schema({
         type: String,
         required: false,
     },
+    status: {
+        type: String,
+        enum: ['purchased', 'not_purchased'],
+        default: 'not_purchased',
+        required: true,
+    },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
