@@ -1,5 +1,6 @@
 import { Dowry } from "../models/dowry.model";
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 
 interface AuthRequest extends Request {
     userId?: string;
@@ -8,12 +9,12 @@ interface AuthRequest extends Request {
 export const createDowry = async (req: AuthRequest, res: Response) => {
     try {
         // Validate required fields
-        const { name, description, dowryCategory, dowryPrice, dowryImage, dowryLocation, status } = req.body;
+        const { name, description, dowryCategory, dowryPrice, dowryLocation, status, imageId } = req.body;
         
-        if (!name || !description || !dowryCategory || !dowryPrice || !dowryImage || dowryImage.trim() === '') {
+        if (!name || !description || !dowryCategory || !dowryPrice || !imageId) {
             res.status(400).json({ 
                 success: false, 
-                message: "Missing required fields: name, description, dowryCategory, dowryPrice, dowryImage" 
+                message: "Missing required fields: name, description, dowryCategory, dowryPrice, imageId" 
             });
             return;
         }
@@ -46,12 +47,21 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
             return;
         }
 
+        // Validate imageId is a valid ObjectId
+        if (!mongoose.Types.ObjectId.isValid(imageId)) {
+            res.status(400).json({ 
+                success: false, 
+                message: "Invalid imageId format" 
+            });
+            return;
+        }
+
         const dowry = new Dowry({ 
             name, 
             description, 
             dowryCategory, 
             dowryPrice, 
-            dowryImage, 
+            dowryImage: imageId, // Store imageId instead of image string
             dowryLocation, 
             status: status || 'not_purchased',
             userId 

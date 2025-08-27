@@ -1,10 +1,10 @@
 import { User } from "../models/user.model";
 import bcrypt from "bcryptjs";
 import { generateTokenAndSetCookie, generateRefreshToken, generateAccessToken } from '../utils/generateTokenAndSetCookie';
-//import { sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/email";
 import { Request, Response } from "express";
 import crypto from "crypto"
 import jwt from "jsonwebtoken"
+import { sendVerificationEmail, sendTestEmail } from '../email/email.service';
 
 interface AuthRequest extends Request {
     userId?: string;
@@ -37,8 +37,16 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         })
         await user.save();
 
-        //send verification email
-        // await sendVerificationEmail(user.email,verificationCode);
+        // Doğrulama emaili gönder
+        try {
+            const emailSent = await sendVerificationEmail(user.email, verificationCode, user.name);
+            if (!emailSent) {
+                console.warn('Verification email could not be sent, but user was created');
+            }
+        } catch (emailError) {
+            console.error('Verification email error:', emailError);
+            // Email gönderilemese bile kullanıcı oluşturuldu, sadece log'la
+        }
 
         res.status(201).json({
             success: true,
@@ -70,14 +78,6 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
         user.verificationCode = undefined;
         user.verificationCodeExpiresAt = undefined;
         await user.save();
-
-        // let emailSent = false;
-        // try {
-        //     await sendWelcomeEmail(user.email,user.name);
-        //     emailSent = true;
-        // } catch (emailError) {
-        //     console.error("Welcome email failed:", emailError);
-        // }
 
         res.status(200).json({
             success: true,
@@ -385,6 +385,38 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
         });
     }
 }
+
+// Test email endpoint'i
+export const testEmail = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            res.status(400).json({ success: false, message: "Email is required" });
+            return;
+        }
+
+        const emailSent = await sendTestEmail(email);
+        
+        if (emailSent) {
+            res.status(200).json({
+                success: true,
+                message: "Test email sent successfully"
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: "Failed to send test email"
+            });
+        }
+    } catch (error) {
+        console.error('Test email error:', error);
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
+    }
+};
 
 // Manuel token temizleme endpoint'i (sadece development için)
 export const clearAllTokens = async (req: Request, res: Response) => {
