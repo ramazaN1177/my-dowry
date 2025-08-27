@@ -7,6 +7,7 @@ import swaggerUi from 'swagger-ui-express';
 import connectDB from './db/connectDB';
 import authRoutes from './routes/auth.route';
 import dowryRoutes from './routes/dowry.routes';
+import imageRoutes from './routes/image.routes';
 
 // Load environment variables
 dotenv.config();
@@ -84,6 +85,7 @@ app.get('/v1/openapi.json', (req: Request, res: Response) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dowry', dowryRoutes);
+app.use('/api/image', imageRoutes);
 
 // Basic health check route
 app.get('/', (req: Request, res: Response) => {

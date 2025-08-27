@@ -18,8 +18,10 @@ const dowrySchema = new mongoose.Schema({
         required: true,
     },
     dowryImage: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Image',
         required: true,
+        // Reference to Image model for GridFS storage
     },
     dowryLocation: {
         type: String,

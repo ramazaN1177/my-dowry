@@ -28,7 +28,8 @@ const router = express.Router();
  *           example: 5000
  *         dowryImage:
  *           type: string
- *           example: "image1.jpg"
+ *           example: "507f1f77bcf86cd799439011"
+ *           description: "Image ID reference"
  *         dowryLocation:
  *           type: string
  *           example: "Istanbul, Turkey"
@@ -69,7 +70,7 @@ const router = express.Router();
  *               - description
  *               - dowryCategory
  *               - dowryPrice
- *               - dowryImage
+ *               - imageId
  *             properties:
  *               name:
  *                 type: string
@@ -83,9 +84,10 @@ const router = express.Router();
  *               dowryPrice:
  *                 type: number
  *                 example: 5000
- *               dowryImage:
+ *               imageId:
  *                 type: string
- *                 example: "image1.jpg"
+ *                 example: "507f1f77bcf86cd799439011"
+ *                 description: "Image ID from uploaded image"
  *               dowryLocation:
  *                 type: string
  *                 example: "Istanbul, Turkey"
@@ -271,9 +273,10 @@ router.get('/get/:id', verifyToken, getDowryById);
  *               dowryPrice:
  *                 type: number
  *                 example: 6000
- *               dowryImage:
+ *               imageId:
  *                 type: string
- *                 example: "image1.jpg"
+ *                 example: "507f1f77bcf86cd799439011"
+ *                 description: "Image ID from uploaded image"
  *               dowryLocation:
  *                 type: string
  *                 example: "Istanbul, Turkey"
