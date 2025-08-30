@@ -26,6 +26,25 @@ export const uploadImage = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
+        // Validate file type
+        if (!req.file.mimetype.startsWith('image/')) {
+            res.status(400).json({
+                success: false,
+                message: 'Only image files are allowed'
+            });
+            return;
+        }
+
+        // Check if GridFS ID exists
+        if (!(req.file as any).id) {
+            console.error('GridFS file ID not found in uploaded file');
+            res.status(500).json({
+                success: false,
+                message: 'File upload failed - GridFS ID not found'
+            });
+            return;
+        }
+
         // Create image record
         const image = new Image({
             filename: req.file.filename,
@@ -53,6 +72,26 @@ export const uploadImage = async (req: AuthRequest, res: Response): Promise<void
 
     } catch (error) {
         console.error('Upload Image Error:', error);
+        
+        // Check if it's a MongoDB validation error
+        if (error instanceof Error && error.name === 'ValidationError') {
+            res.status(400).json({
+                success: false,
+                message: 'Invalid image data',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+            return;
+        }
+
+        // Check if it's a MongoDB duplicate key error
+        if (error instanceof Error && (error as any).code === 11000) {
+            res.status(409).json({
+                success: false,
+                message: 'Image with this filename already exists'
+            });
+            return;
+        }
+
         res.status(500).json({
             success: false,
             message: 'Internal server error',

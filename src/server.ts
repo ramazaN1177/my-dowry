@@ -92,6 +92,41 @@ app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'MyDowry Backend API is running!' });
 });
 
+// Global error handler
+app.use((error: any, req: Request, res: Response, next: any) => {
+  console.error('Global error handler:', error);
+  
+  if (error.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+  
+  if (error.name === 'CastError') {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid ID format',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+  
+  return res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  });
+});
+
+// 404 handler
+app.use('*', (req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', async () => {
   try {
