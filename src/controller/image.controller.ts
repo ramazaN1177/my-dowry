@@ -38,9 +38,10 @@ export const uploadImage = async (req: AuthRequest, res: Response): Promise<void
         // Check if GridFS ID exists
         if (!(req.file as any).id) {
             console.error('GridFS file ID not found in uploaded file');
+            console.error('File object:', req.file);
             res.status(500).json({
                 success: false,
-                message: 'File upload failed - GridFS ID not found'
+                message: 'File upload failed - GridFS ID not found. Please try again.'
             });
             return;
         }
