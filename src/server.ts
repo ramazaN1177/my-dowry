@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import mongoose from 'mongoose';
 import connectDB from './db/connectDB';
 import authRoutes from './routes/auth.route';
 import dowryRoutes from './routes/dowry.routes';
@@ -90,6 +91,50 @@ app.use('/api/image', imageRoutes);
 // Basic health check route
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'MyDowry Backend API is running!' });
+});
+
+// Health check route with upload system status
+app.get('/health', (req: Request, res: Response) => {
+  const { isStorageReady } = require('./middleware/upload');
+  res.json({ 
+    message: 'MyDowry Backend API is running!',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    uploadSystem: isStorageReady() ? 'ready' : 'initializing'
+  });
+});
+
+// Manual storage initialization endpoint (for debugging)
+app.post('/api/debug/init-storage', (req: Request, res: Response) => {
+  try {
+    const { isStorageReady } = require('./middleware/upload');
+    if (isStorageReady()) {
+      res.json({ 
+        success: true,
+        message: 'Storage already initialized'
+      });
+    } else {
+      // Force re-initialization
+      const uploadModule = require('./middleware/upload');
+      if (uploadModule.initializeStorage) {
+        uploadModule.initializeStorage();
+        res.json({ 
+          success: true,
+          message: 'Storage initialization triggered'
+        });
+      } else {
+        res.status(500).json({ 
+          success: false,
+          message: 'Storage initialization function not available'
+        });
+      }
+    }
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to initialize storage',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // Global error handler
