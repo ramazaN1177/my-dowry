@@ -17,9 +17,9 @@ const imageSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
-    uploadDate: {
-        type: Date,
-        default: Date.now,
+    data: {
+        type: String, // Base64 encoded image data
+        required: true,
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -30,10 +30,6 @@ const imageSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Dowry',
         required: false, // Optional, can be linked later
-    },
-    gridfsId: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true,
     }
 }, { timestamps: true });
 

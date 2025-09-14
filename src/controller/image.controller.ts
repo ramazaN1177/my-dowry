@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
 import { Image } from '../models/image.model';
 
 interface AuthRequest extends Request {
@@ -35,25 +34,28 @@ export const uploadImage = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        // Check if GridFS ID exists
-        if (!(req.file as any).id) {
-            console.error('GridFS file ID not found in uploaded file');
+        // Check if base64 data exists
+        const base64Data = (req.file as any).base64Data;
+        const filename = (req.file as any).filename;
+        
+        if (!base64Data || !filename) {
+            console.error('Base64 data or filename not found in uploaded file');
             console.error('File object:', req.file);
             res.status(500).json({
                 success: false,
-                message: 'File upload failed - GridFS ID not found. Please try again.'
+                message: 'File upload failed - Base64 data not found. Please try again.'
             });
             return;
         }
 
         // Create image record
         const image = new Image({
-            filename: req.file.filename,
+            filename: filename,
             originalName: req.file.originalname,
             contentType: req.file.mimetype,
             size: req.file.size,
-            userId: req.userId,
-            gridfsId: (req.file as any).id // Type assertion for GridFS file ID
+            data: base64Data, // Store base64 data directly
+            userId: req.userId
         });
 
         await image.save();
@@ -67,7 +69,8 @@ export const uploadImage = async (req: AuthRequest, res: Response): Promise<void
                 originalName: image.originalName,
                 contentType: image.contentType,
                 size: image.size,
-                uploadDate: image.uploadDate
+                data: image.data, // Include base64 data in response
+                createdAt: image.createdAt
             }
         });
 
@@ -125,32 +128,27 @@ export const getImage = async (req: AuthRequest, res: Response): Promise<void> =
             return;
         }
 
-        // Check if database connection exists
-        if (!mongoose.connection.db) {
-            res.status(500).json({
-                success: false,
-                message: 'Database connection not available'
+        // Serve base64 image data
+        const base64Data = image.data;
+        if (base64Data) {
+            // Convert base64 to buffer
+            const imageBuffer = Buffer.from(base64Data, 'base64');
+            
+            res.set({
+                'Content-Type': image.contentType,
+                'Content-Disposition': `inline; filename="${image.originalName}"`,
+                'Content-Length': imageBuffer.length,
+                'Cache-Control': 'public, max-age=31536000' // Cache for 1 year
             });
+            
+            res.send(imageBuffer);
             return;
+        } else {
+            res.status(404).json({
+                success: false,
+                message: 'Image data not found'
+            });
         }
-
-        // Get GridFS bucket
-        const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
-            bucketName: 'uploads'
-        });
-
-        // Create download stream
-        const downloadStream = bucket.openDownloadStream(image.gridfsId);
-
-        // Set response headers
-        res.set({
-            'Content-Type': image.contentType,
-            'Content-Disposition': `inline; filename="${image.originalName}"`,
-            'Content-Length': image.size
-        });
-
-        // Pipe the file to response
-        downloadStream.pipe(res);
 
     } catch (error) {
         console.error('Get Image Error:', error);
@@ -186,24 +184,7 @@ export const deleteImage = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        // Check if database connection exists
-        if (!mongoose.connection.db) {
-            res.status(500).json({
-                success: false,
-                message: 'Database connection not available'
-            });
-            return;
-        }
-
-        // Get GridFS bucket
-        const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
-            bucketName: 'uploads'
-        });
-
-        // Delete from GridFS
-        await bucket.delete(image.gridfsId);
-
-        // Delete metadata
+        // Delete image record (base64 data is stored in database)
         await Image.findByIdAndDelete(id);
 
         res.status(200).json({
@@ -233,7 +214,7 @@ export const getUserImages = async (req: AuthRequest, res: Response): Promise<vo
         }
 
         const images = await Image.find({ userId: req.userId })
-            .select('-gridfsId')
+            .select('-data') // Exclude base64 data for list view (too large)
             .sort({ createdAt: -1 });
 
         res.status(200).json({
