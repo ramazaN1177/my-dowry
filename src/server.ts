@@ -22,12 +22,42 @@ const app: Application = express();
 const PORT: number = parseInt(process.env.PORT || '5000', 10);
 
 // Middleware
-// CORS configuration for mobile apps
+// CORS configuration for mobile apps and Swagger UI
+const corsOrigins = process.env.NODE_ENV === 'production' 
+  ? [
+      'https://mydowry-backend.onrender.com',  // Render backend URL
+      'https://your-frontend-domain.com',      // Frontend domain'inizi buraya yazın
+      // Mobil uygulamalar için tüm origin'lere izin ver
+      true
+    ]
+  : [
+      'http://localhost:3000',
+      'http://localhost:3001', 
+      'http://localhost:5000',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5000',
+      /^http:\/\/localhost:\d+$/,
+      /^http:\/\/127\.0\.0\.1:\d+$/
+    ];
+
 app.use(cors({
-  origin: true, // Mobil uygulamalar için tüm origin'lere izin ver
-  credentials: true, // Cookie ve authorization header'ları için
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  origin: corsOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Content-Length',
+    'Cache-Control'
+  ],
+  exposedHeaders: [
+    'Content-Disposition',
+    'Content-Type',
+    'Content-Length'
+  ]
 }));
 
 // Preflight requests için
@@ -44,19 +74,14 @@ const swaggerOptions = {
     info: {
       title: 'MyDowry API',
       description: 'MyDowry backend API for mobile application',
-      version: '1.0.0',
-      contact: {
-        name: 'MyDowry Team'
-      }
+      version: '1.0.0'
     },
     servers: [
       {
-        url: 'https://api.mydowry.com/v1',
-        description: 'Production server'
-      },
-      {
-        url: `http://localhost:${PORT}`,
-        description: 'Development server'
+        url: process.env.NODE_ENV === 'production' 
+          ? 'https://my-dowry.onrender.com'  // Render URL'nizi buraya yazın
+          : `http://localhost:${PORT}`,
+        description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server'
       }
     ],
     components: {
@@ -64,23 +89,76 @@ const swaggerOptions = {
         bearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT'
+          bearerFormat: 'JWT',
+          description: 'Enter your JWT token'
+        }
+      },
+      responses: {
+        UnauthorizedError: {
+          description: 'Authentication information is missing or invalid',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: {
+                    type: 'boolean',
+                    example: false
+                  },
+                  message: {
+                    type: 'string',
+                    example: 'Unauthorized'
+                  }
+                }
+              }
+            }
+          }
         }
       }
-    }
+    },
+    security: [
+      {
+        bearerAuth: []
+      }
+    ]
   },
   apis: ['./src/routes/*.ts', './src/controller/*.ts'] // JSDoc yorumlarını içeren dosyalar
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger UI - sadece JSON linki için
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  swaggerOptions: {
+    urls: [
+      {
+        url: `/api-docs.json`,
+        name: 'MyDowry API v1.0.0'
+      }
+    ],
+    validatorUrl: null, // Swagger validator'ı devre dışı bırak
+    docExpansion: 'list', // Dokümantasyon genişletme seviyesi
+    defaultModelsExpandDepth: 2,
+    defaultModelExpandDepth: 2
+  }
+}));
 
-// OpenAPI JSON endpoint
-app.get('/v1/openapi.json', (req: Request, res: Response) => {
+// JSON Schema endpoint
+app.get('/api-docs.json', (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
   res.send(swaggerSpec);
+});
+
+// Additional CORS middleware for file uploads
+app.use('/api/image/upload', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
 });
 
 // Routes
@@ -99,7 +177,8 @@ app.get('/health', (req: Request, res: Response) => {
   res.json({ 
     message: 'MyDowry Backend API is running!',
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    uploadSystem: isStorageReady() ? 'ready' : 'initializing'
+    uploadSystem: 'simple-storage (GridFS disabled)',
+    status: 'ready'
   });
 });
 

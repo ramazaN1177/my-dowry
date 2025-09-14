@@ -1,60 +1,5 @@
 import multer from 'multer';
-import { GridFsStorage } from 'multer-gridfs-storage';
-import mongoose from 'mongoose';
-
-// Create storage function that initializes after database connection
-let storage: any = null;
-let storageInitialized = false;
-
-const createStorage = () => {
-    if (!mongoose.connection.db) {
-        throw new Error('Database not connected');
-    }
-    
-    return new GridFsStorage({
-        db: mongoose.connection.db,
-        file: (req, file) => {
-            return {
-                bucketName: 'uploads',
-                filename: `${Date.now()}-${file.originalname}`,
-                metadata: {
-                    userId: (req as any).userId, // Type assertion for userId
-                    originalName: file.originalname,
-                    contentType: file.mimetype
-                }
-            };
-        }
-    });
-};
-
-// Initialize storage when database is ready
-mongoose.connection.once('open', () => {
-    initializeStorage();
-});
-
-// Also try to initialize when connection is already open
-if (mongoose.connection.readyState === 1) {
-    initializeStorage();
-}
-
-function initializeStorage() {
-    try {
-        storage = createStorage();
-        storageInitialized = true;
-        console.log('GridFS storage initialized successfully');
-    } catch (error) {
-        console.error('Failed to initialize GridFS storage:', error);
-        storageInitialized = false;
-        
-        // Retry after a short delay
-        setTimeout(() => {
-            if (!storageInitialized) {
-                console.log('Retrying GridFS storage initialization...');
-                initializeStorage();
-            }
-        }, 2000);
-    }
-}
+import crypto from 'crypto';
 
 // File filter
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
@@ -66,41 +11,25 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
     }
 };
 
-// Function to get multer instance with proper storage
-const getMulter = () => {
-    if (!storageInitialized || !storage) {
-        throw new Error('GridFS storage not initialized. Database may not be connected.');
-    }
-    
-    return multer({
-        storage: storage,
-        fileFilter: fileFilter,
-        limits: {
-            fileSize: 5 * 1024 * 1024, // 5MB limit
-        }
-    });
-};
+// Memory storage to convert files to base64
+const memoryStorage = multer.memoryStorage();
 
-// Single file upload with error handling
+// Single file upload with base64 conversion
 export const uploadSingle = (req: any, res: any, next: any) => {
     try {
-        console.log('Upload request received. Storage initialized:', storageInitialized);
-        console.log('Storage object exists:', !!storage);
-        console.log('Database connection state:', mongoose.connection.readyState);
+        console.log('Upload request received - Converting to base64');
         
-        // Check if storage is initialized
-        if (!storageInitialized || !storage) {
-            console.log('Storage not ready, returning 503');
-            return res.status(503).json({
-                success: false,
-                message: 'Upload system is initializing. Please try again in a moment.'
-            });
-        }
-
-        const multerInstance = getMulter();
+        // Use memory storage
+        const multerInstance = multer({
+            storage: memoryStorage,
+            fileFilter: fileFilter,
+            limits: {
+                fileSize: 5 * 1024 * 1024, // 5MB limit
+            }
+        });
+        
         multerInstance.single('image')(req, res, (err) => {
             if (err instanceof multer.MulterError) {
-                // A Multer error occurred when uploading
                 console.error('Multer error:', err);
                 if (err.code === 'LIMIT_FILE_SIZE') {
                     return res.status(400).json({
@@ -113,14 +42,25 @@ export const uploadSingle = (req: any, res: any, next: any) => {
                     message: 'File upload error: ' + err.message
                 });
             } else if (err) {
-                // An unknown error occurred
                 console.error('Upload error:', err);
                 return res.status(500).json({
                     success: false,
                     message: 'File upload failed: ' + err.message
                 });
             }
-            // Everything went fine
+            
+            // Convert file to base64
+            if (req.file) {
+                const base64Data = req.file.buffer.toString('base64');
+                const filename = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}.${req.file.mimetype.split('/')[1]}`;
+                
+                // Add base64 data and filename to file object
+                (req.file as any).base64Data = base64Data;
+                (req.file as any).filename = filename;
+                (req.file as any).id = filename;
+                
+                console.log('File converted to base64 successfully:', filename);
+            }
             next();
         });
     } catch (error) {
@@ -132,18 +72,17 @@ export const uploadSingle = (req: any, res: any, next: any) => {
     }
 };
 
-// Multiple files upload with error handling
+// Multiple files upload with base64 conversion
 export const uploadMultiple = (req: any, res: any, next: any) => {
     try {
-        // Check if storage is initialized
-        if (!storageInitialized || !storage) {
-            return res.status(503).json({
-                success: false,
-                message: 'Upload system is initializing. Please try again in a moment.'
-            });
-        }
+        const multerInstance = multer({
+            storage: memoryStorage,
+            fileFilter: fileFilter,
+            limits: {
+                fileSize: 5 * 1024 * 1024, // 5MB limit
+            }
+        });
 
-        const multerInstance = getMulter();
         multerInstance.array('images', 5)(req, res, (err) => {
             if (err instanceof multer.MulterError) {
                 console.error('Multer error:', err);
@@ -164,6 +103,19 @@ export const uploadMultiple = (req: any, res: any, next: any) => {
                     message: 'File upload failed: ' + err.message
                 });
             }
+            
+            // Convert files to base64
+            if (req.files) {
+                req.files.forEach((file: any) => {
+                    const base64Data = file.buffer.toString('base64');
+                    const filename = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}.${file.mimetype.split('/')[1]}`;
+                    
+                    file.base64Data = base64Data;
+                    file.filename = filename;
+                    file.id = filename;
+                });
+                console.log('Multiple files converted to base64 successfully');
+            }
             next();
         });
     } catch (error) {
@@ -177,17 +129,5 @@ export const uploadMultiple = (req: any, res: any, next: any) => {
 
 // Export a function to check if storage is ready
 export const isStorageReady = () => {
-    return storageInitialized && storage !== null;
+    return true; // Simple storage is always ready
 };
-
-// Export the initializeStorage function for manual initialization
-export { initializeStorage };
-
-// Legacy export for backward compatibility (but it won't work until storage is initialized)
-export const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
-    }
-});
