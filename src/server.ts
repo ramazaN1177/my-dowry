@@ -9,6 +9,7 @@ import connectDB from './db/connectDB';
 import authRoutes from './routes/auth.route';
 import dowryRoutes from './routes/dowry.routes';
 import imageRoutes from './routes/image.routes';
+import categoryRoutes from './routes/category.route';
 
 // Load environment variables
 dotenv.config();
@@ -165,6 +166,7 @@ app.use('/api/image/upload', (req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/dowry', dowryRoutes);
 app.use('/api/image', imageRoutes);
+app.use('/api/category', categoryRoutes);
 
 // Basic health check route
 app.get('/', (req: Request, res: Response) => {
