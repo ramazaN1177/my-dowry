@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { Category } from "../models/category.model";
 import { Dowry } from "../models/dowry.model";
+import { Image } from "../models/image.model";
 interface AuthRequest extends Request {
     userId?: string;
 }
@@ -96,9 +97,29 @@ export const addCategory = async (req: AuthRequest, res: Response) => {
                 return;
             }
     
+            // Bu kategoriye ait tüm çeyizleri bul
+            const dowries = await Dowry.find({ 
+                Category: categoryId,
+                userId: userId 
+            });
+
+            // Çeyizlere ait tüm resimlerin ID'lerini topla
+            const imageIds = dowries
+                .filter(dowry => dowry.dowryImage)
+                .map(dowry => dowry.dowryImage);
+
+            // Tüm resimleri sil
+            let deletedImagesCount = 0;
+            if (imageIds.length > 0) {
+                const deletedImages = await Image.deleteMany({ 
+                    _id: { $in: imageIds } 
+                });
+                deletedImagesCount = deletedImages.deletedCount || 0;
+            }
+    
             // Bu kategoriye ait tüm çeyizleri sil
             const deletedDowries = await Dowry.deleteMany({ 
-                Category: categoryId,  // Category alanını kullan
+                Category: categoryId,
                 userId: userId 
             });
     
@@ -107,7 +128,7 @@ export const addCategory = async (req: AuthRequest, res: Response) => {
     
             res.status(200).json({ 
                 success: true, 
-                message: `Category and ${deletedDowries.deletedCount} associated dowries deleted successfully` 
+                message: `Category, ${deletedDowries.deletedCount} associated dowries, and ${deletedImagesCount} associated images deleted successfully` 
             });
         } catch (error) {
             console.error('Delete Category Error:', error);
