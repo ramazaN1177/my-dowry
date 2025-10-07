@@ -1,5 +1,6 @@
 import { Dowry } from "../models/dowry.model";
 import { Category } from "../models/category.model";
+import { Image } from "../models/image.model";
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 
@@ -289,7 +290,7 @@ export const updateDowryStatus = async (req: AuthRequest, res: Response) => {
 
 export const deleteDowry = async (req: AuthRequest, res: Response) => {
     try {
-        const dowry = await Dowry.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+        const dowry = await Dowry.findOne({ _id: req.params.id, userId: req.userId });
         
         if (!dowry) {
             res.status(404).json({ 
@@ -298,9 +299,22 @@ export const deleteDowry = async (req: AuthRequest, res: Response) => {
             });
             return;
         }
+
+        // Delete the associated image first
+        if (dowry.dowryImage) {
+            await Image.findByIdAndDelete(dowry.dowryImage);
+        }
+
+        // Then delete the dowry
+        await Dowry.findByIdAndDelete(dowry._id);
         
-        res.status(200).json({ success: true, message: "Dowry deleted successfully" });
+        res.status(200).json({ success: true, message: "Dowry and associated image deleted successfully" });
     } catch (error) {
-        res.status(500).json({ success: false, message: "Internal server error" });
+        console.error('Delete Dowry Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Internal server error",
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        });
     }
 }
