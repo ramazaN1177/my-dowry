@@ -7,7 +7,7 @@ const dowrySchema = new mongoose.Schema({
     },
     description: {
         type: String,
-        required: true,
+        required: false,
     },
    Category:{
     type: mongoose.Schema.Types.ObjectId,
@@ -16,12 +16,12 @@ const dowrySchema = new mongoose.Schema({
    },
     dowryPrice: {
         type: Number,
-        required: true,
+        required: false,
     },
     dowryImage: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Image',
-        required: true,
+        required: false,
         // Reference to Image model for GridFS storage
     },
     dowryLocation: {
