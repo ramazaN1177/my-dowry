@@ -1,29 +1,20 @@
 import { Dowry } from "../models/dowry.model";
-import { Category } from "../models/category.model";
-import { Image } from "../models/image.model";
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 
 interface AuthRequest extends Request {
     userId?: string;
 }
-
+ 
 export const createDowry = async (req: AuthRequest, res: Response) => {
     try {
         // Validate required fields
-        const { name, description, Category: categoryId, dowryPrice, dowryLocation, status, imageId } = req.body;
+        const { name, description, dowryCategory, dowryPrice, dowryLocation, status, imageId } = req.body;
         
-<<<<<<< HEAD
         if (!name ||  !dowryCategory) {
             res.status(400).json({ 
                 success: false, 
                 message: "Missing required fields: name, dowryCategory" 
-=======
-        if (!name || !description || !categoryId || !dowryPrice || !imageId) {
-            res.status(400).json({ 
-                success: false, 
-                message: "Missing required fields: name, description, Category, dowryPrice, imageId" 
->>>>>>> 11ad8a8caffec3f523fe803d8cfb3fbe964c32c2
             });
             return;
         }
@@ -37,26 +28,9 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
             });
             return;
         }
-        if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-            res.status(400).json({ 
-                success: false, 
-                message: "Invalid Category format" 
-            });
-            return;
-        }
-
-        // Check if category exists and belongs to user
-        const category = await Category.findOne({ _id: categoryId, userId: userId });
-        if (!category) {
-            res.status(404).json({ 
-                success: false, 
-                message: "Category not found or you don't have permission to use it" 
-            });
-            return;
-        }
 
         // Validate price is a number
-        if (typeof dowryPrice !== 'number' || dowryPrice <= 0) {
+        if (dowryPrice !== undefined && (typeof dowryPrice !== 'number' || dowryPrice <= 0)) {
             res.status(400).json({ 
                 success: false, 
                 message: "dowryPrice must be a positive number" 
@@ -85,7 +59,7 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
         const dowry = new Dowry({ 
             name, 
             description, 
-            Category: categoryId, 
+            dowryCategory, 
             dowryPrice, 
             dowryImage: imageId, // Store imageId instead of image string
             dowryLocation, 
@@ -115,7 +89,7 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        const { status, Category: categoryId, search, page = 1, limit = 10 } = req.query;
+        const { status, category, search, page = 1, limit = 10 } = req.query;
         
         // Validate status if provided
         if (status && !['purchased', 'not_purchased'].includes(status as string)) {
@@ -126,22 +100,13 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        // Validate Category if provided
-        if (categoryId && !mongoose.Types.ObjectId.isValid(categoryId as string)) {
-            res.status(400).json({ 
-                success: false, 
-                message: "Invalid Category format" 
-            });
-            return;
-        }
-
         // Build filter object
         const filter: any = { userId: req.userId };
         if (status) {
             filter.status = status;
         }
-        if (categoryId) {
-            filter.Category = categoryId;
+        if (category) {
+            filter.dowryCategory = category;
         }
         if (search) {
             // Search in name and description fields (case-insensitive)
@@ -159,9 +124,8 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
         // Get total count for pagination
         const total = await Dowry.countDocuments(filter);
         
-        // Get dowries with pagination and populate category
+        // Get dowries with pagination
         const dowries = await Dowry.find(filter)
-            .populate('Category', 'name icon')  // Category bilgilerini getir
             .skip(skip)
             .limit(limitNum)
             .sort({ createdAt: -1 });
@@ -191,8 +155,7 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
 
 export const getDowryById = async (req: AuthRequest, res: Response) => {
     try {
-        const dowry = await Dowry.findOne({ _id: req.params.id, userId: req.userId })
-            .populate('Category', 'name icon');  // Category bilgilerini getir
+        const dowry = await Dowry.findOne({ _id: req.params.id, userId: req.userId });
         
         if (!dowry) {
             res.status(404).json({ 
@@ -210,34 +173,11 @@ export const getDowryById = async (req: AuthRequest, res: Response) => {
 
 export const updateDowry = async (req: AuthRequest, res: Response) => {
     try {
-        const { Category: categoryId } = req.body;
-        
-        // If Category is being updated, validate it
-        if (categoryId) {
-            if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-                res.status(400).json({ 
-                    success: false, 
-                    message: "Invalid Category format" 
-                });
-                return;
-            }
-            
-            // Check if category exists and belongs to user
-            const category = await Category.findOne({ _id: categoryId, userId: req.userId });
-            if (!category) {
-                res.status(404).json({ 
-                    success: false, 
-                    message: "Category not found or you don't have permission to use it" 
-                });
-                return;
-            }
-        }
-
         const dowry = await Dowry.findOneAndUpdate(
             { _id: req.params.id, userId: req.userId }, 
             req.body, 
             { new: true }
-        ).populate('Category', 'name icon');  // Category bilgilerini getir
+        );
         
         if (!dowry) {
             res.status(404).json({ 
@@ -270,7 +210,7 @@ export const updateDowryStatus = async (req: AuthRequest, res: Response) => {
             { _id: req.params.id, userId: req.userId }, 
             { status }, 
             { new: true }
-        ).populate('Category', 'name icon');  // Category bilgilerini getir
+        );
         
         if (!dowry) {
             res.status(404).json({ 
@@ -297,7 +237,7 @@ export const updateDowryStatus = async (req: AuthRequest, res: Response) => {
 
 export const deleteDowry = async (req: AuthRequest, res: Response) => {
     try {
-        const dowry = await Dowry.findOne({ _id: req.params.id, userId: req.userId });
+        const dowry = await Dowry.findOneAndDelete({ _id: req.params.id, userId: req.userId });
         
         if (!dowry) {
             res.status(404).json({ 
@@ -306,22 +246,9 @@ export const deleteDowry = async (req: AuthRequest, res: Response) => {
             });
             return;
         }
-
-        // Delete the associated image first
-        if (dowry.dowryImage) {
-            await Image.findByIdAndDelete(dowry.dowryImage);
-        }
-
-        // Then delete the dowry
-        await Dowry.findByIdAndDelete(dowry._id);
         
-        res.status(200).json({ success: true, message: "Dowry and associated image deleted successfully" });
+        res.status(200).json({ success: true, message: "Dowry deleted successfully" });
     } catch (error) {
-        console.error('Delete Dowry Error:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: "Internal server error",
-            error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
-        });
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
