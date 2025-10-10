@@ -29,11 +29,11 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        // Validate price is a number
-        if (dowryPrice !== undefined && (typeof dowryPrice !== 'number' || dowryPrice <= 0)) {
+        // Validate price is a number if provided
+        if (dowryPrice !== undefined && (typeof dowryPrice !== 'number' || dowryPrice < 0)) {
             res.status(400).json({ 
                 success: false, 
-                message: "dowryPrice must be a positive number" 
+                message: "dowryPrice must be a non-negative number" 
             });
             return;
         }
