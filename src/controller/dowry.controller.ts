@@ -9,12 +9,12 @@ interface AuthRequest extends Request {
 export const createDowry = async (req: AuthRequest, res: Response) => {
     try {
         // Validate required fields
-        const { name, description, dowryCategory, dowryPrice, dowryLocation, status, imageId } = req.body;
+        const { name, description, Category, dowryPrice, dowryLocation, status, imageId } = req.body;
         
-        if (!name ||  !dowryCategory) {
+        if (!name || !Category) {
             res.status(400).json({ 
                 success: false, 
-                message: "Missing required fields: name, dowryCategory" 
+                message: "Missing required fields: name, Category" 
             });
             return;
         }
@@ -59,7 +59,7 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
         const dowry = new Dowry({ 
             name, 
             description, 
-            dowryCategory, 
+            Category, 
             dowryPrice, 
             dowryImage: imageId, // Store imageId instead of image string
             dowryLocation, 
@@ -106,7 +106,7 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
             filter.status = status;
         }
         if (category) {
-            filter.dowryCategory = category;
+            filter.Category = category;
         }
         if (search) {
             // Search in name and description fields (case-insensitive)
