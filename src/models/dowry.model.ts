@@ -9,10 +9,11 @@ const dowrySchema = new mongoose.Schema({
         type: String,
         required: false,
     },
-    dowryCategory: {
-        type: String,
-        required: true,
-    },
+   Category:{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true,
+   },
     dowryPrice: {
         type: Number,
         required: false,

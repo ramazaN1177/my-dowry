@@ -20,9 +20,18 @@ const router = express.Router();
  *         description:
  *           type: string
  *           example: "Beautiful gold necklace with precious stones"
- *         dowryCategory:
- *           type: string
- *           example: "jewelry"
+ *         Category:
+ *           type: object
+ *           properties:
+ *             _id:
+ *               type: string
+ *               example: "507f1f77bcf86cd799439011"
+ *             name:
+ *               type: string
+ *               example: "Jewelry"
+ *             icon:
+ *               type: string
+ *               example: "jewelry-icon.png"
  *         dowryPrice:
  *           type: number
  *           example: 5000
@@ -67,7 +76,14 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - name
+<<<<<<< HEAD
  *               - dowryCategory
+=======
+ *               - description
+ *               - Category
+ *               - dowryPrice
+ *               - imageId
+>>>>>>> 11ad8a8caffec3f523fe803d8cfb3fbe964c32c2
  *             properties:
  *               name:
  *                 type: string
@@ -75,9 +91,10 @@ const router = express.Router();
  *               description:
  *                 type: string
  *                 example: "Beautiful gold necklace with precious stones"
- *               dowryCategory:
+ *               Category:
  *                 type: string
- *                 example: "jewelry"
+ *                 example: "507f1f77bcf86cd799439011"
+ *                 description: "Category ID reference"
  *               dowryPrice:
  *                 type: number
  *                 example: 5000
@@ -134,8 +151,8 @@ router.post('/create', verifyToken, createDowry);
  *           type: string
  *           enum: [purchased, not_purchased]
  *       - in: query
- *         name: category
- *         description: Filter by dowry category
+ *         name: Category
+ *         description: Filter by category ID
  *         schema:
  *           type: string
  *       - in: query
@@ -264,9 +281,10 @@ router.get('/get/:id', verifyToken, getDowryById);
  *               description:
  *                 type: string
  *                 example: "Updated description"
- *               dowryCategory:
+ *               Category:
  *                 type: string
- *                 example: "jewelry"
+ *                 example: "507f1f77bcf86cd799439011"
+ *                 description: "Category ID reference"
  *               dowryPrice:
  *                 type: number
  *                 example: 6000
