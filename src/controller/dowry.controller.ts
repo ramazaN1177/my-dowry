@@ -11,10 +11,10 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
         // Validate required fields
         const { name, description, dowryCategory, dowryPrice, dowryLocation, status, imageId } = req.body;
         
-        if (!name || !description || !dowryCategory || !dowryPrice || !imageId) {
+        if (!name ||  !dowryCategory) {
             res.status(400).json({ 
                 success: false, 
-                message: "Missing required fields: name, description, dowryCategory, dowryPrice, imageId" 
+                message: "Missing required fields: name, dowryCategory" 
             });
             return;
         }
@@ -48,7 +48,7 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
         }
 
         // Validate imageId is a valid ObjectId
-        if (!mongoose.Types.ObjectId.isValid(imageId)) {
+        if (imageId && !mongoose.Types.ObjectId.isValid(imageId)) {
             res.status(400).json({ 
                 success: false, 
                 message: "Invalid imageId format" 

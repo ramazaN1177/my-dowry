@@ -67,10 +67,7 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - name
- *               - description
  *               - dowryCategory
- *               - dowryPrice
- *               - imageId
  *             properties:
  *               name:
  *                 type: string
