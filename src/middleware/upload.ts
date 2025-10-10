@@ -24,7 +24,7 @@ export const uploadSingle = (req: any, res: any, next: any) => {
             storage: memoryStorage,
             fileFilter: fileFilter,
             limits: {
-                fileSize: 5 * 1024 * 1024, // 5MB limit
+                fileSize: 7 * 1024 * 1024, // 7MB limit
             }
         });
         
@@ -34,7 +34,7 @@ export const uploadSingle = (req: any, res: any, next: any) => {
                 if (err.code === 'LIMIT_FILE_SIZE') {
                     return res.status(400).json({
                         success: false,
-                        message: 'File too large. Maximum size is 5MB.'
+                        message: 'File too large. Maximum size is 7MB.'
                     });
                 }
                 return res.status(400).json({
@@ -79,7 +79,7 @@ export const uploadMultiple = (req: any, res: any, next: any) => {
             storage: memoryStorage,
             fileFilter: fileFilter,
             limits: {
-                fileSize: 5 * 1024 * 1024, // 5MB limit
+                fileSize: 7 * 1024 * 1024, // 7MB limit
             }
         });
 
@@ -89,7 +89,7 @@ export const uploadMultiple = (req: any, res: any, next: any) => {
                 if (err.code === 'LIMIT_FILE_SIZE') {
                     return res.status(400).json({
                         success: false,
-                        message: 'One or more files too large. Maximum size is 5MB per file.'
+                        message: 'One or more files too large. Maximum size is 7MB per file.'
                     });
                 }
                 return res.status(400).json({
