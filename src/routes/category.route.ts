@@ -34,7 +34,7 @@ const router = express.Router();
  *     Error:
  *       type: object
  *       properties:
- *         success:
+ *         success: 
  *           type: boolean
  *           example: false
  *         message:
