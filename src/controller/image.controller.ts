@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Image } from '../models/image.model';
+import { OCRService } from '../ocrService';
 
 interface AuthRequest extends Request {
     userId?: string;
@@ -228,6 +229,63 @@ export const getUserImages = async (req: AuthRequest, res: Response): Promise<vo
         res.status(500).json({
             success: false,
             message: 'Internal server error',
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        });
+    }
+};
+
+// Process image with OCR
+export const processImageOCR = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        if (!req.userId) {
+            res.status(401).json({
+                success: false,
+                message: 'User not authenticated'
+            });
+            return;
+        }
+
+        // Get image from database
+        const image = await Image.findOne({ _id: id, userId: req.userId });
+        
+        if (!image) {
+            res.status(404).json({
+                success: false,
+                message: 'Image not found or you don\'t have permission to access it'
+            });
+            return;
+        }
+
+        // Process image with OCR
+        console.log('Starting OCR processing for image:', id);
+        const bookInfo = await OCRService.processBookImage(image.data);
+
+        if (!bookInfo) {
+            res.status(200).json({
+                success: true,
+                message: 'OCR processing completed but no book information found',
+                bookInfo: null
+            });
+            return;
+        }
+
+        // Return book information
+        res.status(200).json({
+            success: true,
+            message: 'Book information extracted successfully',
+            bookInfo: {
+                title: bookInfo.title,
+                author: bookInfo.author
+            }
+        });
+
+    } catch (error) {
+        console.error('Process Image OCR Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process image with OCR',
             error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
         });
     }

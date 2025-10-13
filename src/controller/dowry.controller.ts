@@ -1,4 +1,5 @@
 import { Dowry } from "../models/dowry.model";
+import { Image } from "../models/image.model";
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 
@@ -237,7 +238,8 @@ export const updateDowryStatus = async (req: AuthRequest, res: Response) => {
 
 export const deleteDowry = async (req: AuthRequest, res: Response) => {
     try {
-        const dowry = await Dowry.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+        // First find the dowry to get the image reference
+        const dowry = await Dowry.findOne({ _id: req.params.id, userId: req.userId });
         
         if (!dowry) {
             res.status(404).json({ 
@@ -246,9 +248,31 @@ export const deleteDowry = async (req: AuthRequest, res: Response) => {
             });
             return;
         }
+
+        // If dowry has an associated image, delete it
+        if (dowry.dowryImage) {
+            try {
+                await Image.findByIdAndDelete(dowry.dowryImage);
+                console.log(`Associated image ${dowry.dowryImage} deleted successfully`);
+            } catch (imageError) {
+                console.error('Error deleting associated image:', imageError);
+                // Continue with dowry deletion even if image deletion fails
+            }
+        }
+
+        // Delete the dowry
+        await Dowry.findByIdAndDelete(dowry._id);
         
-        res.status(200).json({ success: true, message: "Dowry deleted successfully" });
+        res.status(200).json({ 
+            success: true, 
+            message: "Dowry and associated image deleted successfully" 
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: "Internal server error" });
+        console.error('Delete Dowry Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Internal server error",
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        });
     }
 }
