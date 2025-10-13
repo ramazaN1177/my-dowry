@@ -1,5 +1,5 @@
 import express from 'express';
-import { uploadImage, getImage, deleteImage, getUserImages } from '../controller/image.controller';
+import { uploadImage, getImage, deleteImage, getUserImages, processImageOCR } from '../controller/image.controller';
 import { uploadSingle } from '../middleware/upload';
 import { verifyToken } from '../middleware/verifyToken';
 
@@ -37,6 +37,15 @@ const router = express.Router();
  *         dowryId:
  *           type: string
  *           example: "507f1f77bcf86cd799439012"
+ *     BookInfo:
+ *       type: object
+ *       properties:
+ *         title:
+ *           type: string
+ *           example: "Robinson Crusoe"
+ *         author:
+ *           type: string
+ *           example: "Daniel Defoe"
  */
 
 /**
@@ -44,7 +53,7 @@ const router = express.Router();
  * /api/image/upload:
  *   post:
  *     summary: Upload an image
- *     description: Upload an image file to GridFS
+ *     description: Upload an image file. For OCR processing, use the /api/image/ocr/:id endpoint after upload.
  *     tags: [Image]
  *     security:
  *       - bearerAuth: []
@@ -187,5 +196,53 @@ router.delete('/:id', verifyToken, deleteImage);
  *                     $ref: '#/components/schemas/Image'
  */
 router.get('/user/images', verifyToken, getUserImages);
+
+/**
+ * @swagger
+ * /api/image/ocr/{id}:
+ *   post:
+ *     summary: Process image with OCR
+ *     description: Extract book title and author from an image using Tesseract OCR and Open Library API. Does not save to database, only returns the result. Frontend should check category icon before calling this endpoint.
+ *     tags: [Image]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Image ID to process
+ *         schema:
+ *           type: string
+ *           example: "507f1f77bcf86cd799439011"
+ *     responses:
+ *       200:
+ *         description: OCR processing completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Book information extracted successfully"
+ *                 bookInfo:
+ *                   $ref: '#/components/schemas/BookInfo'
+ *       404:
+ *         description: Image not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: OCR processing failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/ocr/:id', verifyToken, processImageOCR);
 
 export default router;
