@@ -21,7 +21,7 @@ const router = express.Router();
  *           type: string
  *           example: "507f1f77bcf86cd799439011"
  *         userId:
- *           type: string
+ *           type: string 
  *           example: "507f1f77bcf86cd799439011"
  *         createdAt:
  *           type: string
