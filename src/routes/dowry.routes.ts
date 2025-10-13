@@ -154,6 +154,11 @@ router.post('/create', verifyToken, createDowry);
  *         schema:
  *           type: string
  *       - in: query
+ *         name: isRead
+ *         description: Filter by read status (for books)
+ *         schema:
+ *           type: boolean
+ *       - in: query
  *         name: page
  *         description: Page number
  *         schema:

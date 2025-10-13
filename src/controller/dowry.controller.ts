@@ -90,7 +90,7 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        const { status, Category, search, page = 1, limit = 10 } = req.query;
+        const { status, Category, search, page = 1, limit = 10, isRead } = req.query;
         
         // Validate status if provided
         if (status && !['purchased', 'not_purchased'].includes(status as string)) {
@@ -108,6 +108,11 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
         }
         if (Category) {
             filter.Category = Category;
+        }
+        if (isRead !== undefined && isRead !== null && isRead !== '') {
+            // Convert string to boolean
+            const readValue = typeof isRead === 'string' ? isRead : String(isRead);
+            filter.isRead = readValue === 'true';
         }
         if (search) {
             // Search in name and description fields (case-insensitive)
