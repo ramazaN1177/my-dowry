@@ -34,6 +34,11 @@ const dowrySchema = new mongoose.Schema({
         default: 'not_purchased',
         required: true,
     },
+    isRead: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

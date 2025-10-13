@@ -334,6 +334,7 @@ export const addBooks = async (req: AuthRequest, res: Response) => {
                         Category: categoryId,
                         dowryPrice: 0,
                         status: 'not_purchased',
+                        isRead: false,
                         userId
                     });
                     
