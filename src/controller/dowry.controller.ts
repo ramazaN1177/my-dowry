@@ -241,6 +241,129 @@ export const updateDowryStatus = async (req: AuthRequest, res: Response) => {
     }
 }
 
+export const updateDowryImage = async (req: AuthRequest, res: Response) => {
+    try {
+        const { imageId } = req.body;
+        
+        // Validate imageId is provided
+        if (!imageId) {
+            res.status(400).json({ 
+                success: false, 
+                message: "imageId is required" 
+            });
+            return;
+        }
+
+        // Validate imageId is a valid ObjectId
+        if (!mongoose.Types.ObjectId.isValid(imageId)) {
+            res.status(400).json({ 
+                success: false, 
+                message: "Invalid imageId format" 
+            });
+            return;
+        }
+
+        // Find the dowry
+        const dowry = await Dowry.findOne({ _id: req.params.id, userId: req.userId });
+        
+        if (!dowry) {
+            res.status(404).json({ 
+                success: false, 
+                message: "Dowry not found or you don't have permission to update it" 
+            });
+            return;
+        }
+
+        // If dowry has an existing image, delete it
+        if (dowry.dowryImage) {
+            try {
+                await Image.findByIdAndDelete(dowry.dowryImage);
+                console.log(`Previous image ${dowry.dowryImage} deleted successfully`);
+            } catch (imageError) {
+                console.error('Error deleting previous image:', imageError);
+                // Continue with update even if old image deletion fails
+            }
+        }
+
+        // Update dowry with new image
+        const updatedDowry = await Dowry.findByIdAndUpdate(
+            dowry._id,
+            { dowryImage: imageId },
+            { new: true }
+        );
+
+        res.status(200).json({ 
+            success: true, 
+            message: "Dowry image updated successfully", 
+            dowry: updatedDowry 
+        });
+    } catch (error) {
+        console.error('Update Dowry Image Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Internal server error",
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        });
+    }
+}
+
+export const deleteDowryImage = async (req: AuthRequest, res: Response) => {
+    try {
+        // Find the dowry
+        const dowry = await Dowry.findOne({ _id: req.params.id, userId: req.userId });
+        
+        if (!dowry) {
+            res.status(404).json({ 
+                success: false, 
+                message: "Dowry not found or you don't have permission to access it" 
+            });
+            return;
+        }
+
+        // Check if dowry has an image
+        if (!dowry.dowryImage) {
+            res.status(404).json({ 
+                success: false, 
+                message: "Dowry has no image to delete" 
+            });
+            return;
+        }
+
+        // Delete the image from database
+        try {
+            await Image.findByIdAndDelete(dowry.dowryImage);
+            console.log(`Image ${dowry.dowryImage} deleted successfully`);
+        } catch (imageError) {
+            console.error('Error deleting image:', imageError);
+            res.status(500).json({ 
+                success: false, 
+                message: "Error deleting image from database" 
+            });
+            return;
+        }
+
+        // Remove image reference from dowry
+        const updatedDowry = await Dowry.findByIdAndUpdate(
+            dowry._id,
+            { $unset: { dowryImage: "" } },
+            { new: true }
+        );
+
+        res.status(200).json({ 
+            success: true, 
+            message: "Dowry image deleted successfully", 
+            dowry: updatedDowry 
+        });
+    } catch (error) {
+        console.error('Delete Dowry Image Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Internal server error",
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        });
+    }
+}
+
 export const deleteDowry = async (req: AuthRequest, res: Response) => {
     try {
         // First find the dowry to get the image reference

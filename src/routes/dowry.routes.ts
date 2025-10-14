@@ -1,5 +1,5 @@
 import express from 'express';
-import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, updateDowryStatus } from '../controller/dowry.controller';
+import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, updateDowryStatus, updateDowryImage, deleteDowryImage } from '../controller/dowry.controller';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
@@ -381,6 +381,113 @@ router.put('/update/:id', verifyToken, updateDowry);
  *               $ref: '#/components/schemas/Error'
  */
 router.patch('/status/:id', verifyToken, updateDowryStatus);
+
+/**
+ * @swagger
+ * /api/dowry/image/{id}:
+ *   patch:
+ *     summary: Update dowry image
+ *     description: Update the image of a specific dowry. If a previous image exists, it will be deleted and replaced with the new one.
+ *     tags: [Dowry]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Dowry ID
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - imageId
+ *             properties:
+ *               imageId:
+ *                 type: string
+ *                 example: "507f1f77bcf86cd799439011"
+ *                 description: "Image ID from uploaded image"
+ *     responses:
+ *       200:
+ *         description: Dowry image updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Dowry image updated successfully"
+ *                 dowry:
+ *                   $ref: '#/components/schemas/Dowry'
+ *       400:
+ *         description: Bad request - Invalid or missing imageId
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Dowry not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.patch('/image/:id', verifyToken, updateDowryImage);
+
+/**
+ * @swagger
+ * /api/dowry/image/{id}:
+ *   delete:
+ *     summary: Delete dowry image
+ *     description: Delete the image of a specific dowry. The image will be removed from the database and the dowry's image reference will be cleared.
+ *     tags: [Dowry]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Dowry ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Dowry image deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Dowry image deleted successfully"
+ *                 dowry:
+ *                   $ref: '#/components/schemas/Dowry'
+ *       404:
+ *         description: Dowry not found or has no image to delete
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error deleting image from database
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/image/:id', verifyToken, deleteDowryImage);
 
 /**
  * @swagger
