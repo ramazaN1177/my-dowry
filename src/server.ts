@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.route';
 import dowryRoutes from './routes/dowry.routes';
 import imageRoutes from './routes/image.routes';
 import categoryRoutes from './routes/category.route';
+import bookRoutes from './routes/book.routes';
 
 // Load environment variables
 dotenv.config();
@@ -167,6 +168,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/dowry', dowryRoutes);
 app.use('/api/image', imageRoutes);
 app.use('/api/category', categoryRoutes);
+app.use('/api/book', bookRoutes);
 
 // Basic health check route
 app.get('/', (req: Request, res: Response) => {

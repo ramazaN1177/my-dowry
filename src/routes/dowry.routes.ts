@@ -1,5 +1,5 @@
 import express from 'express';
-import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, updateDowryStatus, addBooks } from '../controller/dowry.controller';
+import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, updateDowryStatus } from '../controller/dowry.controller';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
@@ -420,89 +420,5 @@ router.patch('/status/:id', verifyToken, updateDowryStatus);
  *               $ref: '#/components/schemas/Error'
  */
 router.delete('/delete/:id', verifyToken, deleteDowry);
-
-/**
- * @swagger
- * /api/dowry/addBooks:
- *   post:
- *     summary: Add multiple books at once
- *     description: Add multiple books from formatted text (Author – Book Name format)
- *     tags: [Dowry]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - text
- *               - categoryId
- *             properties:
- *               text:
- *                 type: string
- *                 example: "William Shakespeare – Romeo ve Juliet\nFyodor M. Dostoyevski – Yeraltından Notlar"
- *                 description: "Multi-line text with format: Author – Book Name"
- *               categoryId:
- *                 type: string
- *                 example: "507f1f77bcf86cd799439011"
- *                 description: "Category ID (should be book category)"
- *     responses:
- *       201:
- *         description: Books added successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Successfully added 10 books"
- *                 data:
- *                   type: object
- *                   properties:
- *                     created:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           bookName:
- *                             type: string
- *                           author:
- *                             type: string
- *                           id:
- *                             type: string
- *                     errors:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           line:
- *                             type: integer
- *                           text:
- *                             type: string
- *                           error:
- *                             type: string
- *                     summary:
- *                       type: object
- *                       properties:
- *                         total:
- *                           type: integer
- *                         successful:
- *                           type: integer
- *                         failed:
- *                           type: integer
- *       400:
- *         description: Bad request
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-router.post('/addBooks', verifyToken, addBooks);
 
 export default router;
