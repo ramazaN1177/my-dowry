@@ -59,7 +59,7 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
 
         // Validate URL format if provided
         if (url) {
-            const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*(\?[^#]*)?(\#[^]*)?$/;
             if (!urlRegex.test(url)) {
                 res.status(400).json({ 
                     success: false, 
@@ -196,7 +196,7 @@ export const updateDowry = async (req: AuthRequest, res: Response) => {
         
         // Validate URL format if provided
         if (url) {
-            const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*(\?[^#]*)?(\#[^]*)?$/;
             if (!urlRegex.test(url)) {
                 res.status(400).json({ 
                     success: false, 
