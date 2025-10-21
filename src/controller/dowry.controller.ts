@@ -10,7 +10,7 @@ interface AuthRequest extends Request {
 export const createDowry = async (req: AuthRequest, res: Response) => {
     try {
         // Validate required fields
-        const { name, description, Category, dowryPrice, dowryLocation, status, imageId } = req.body;
+        const { name, description, Category, dowryPrice, dowryLocation, status, imageId, url } = req.body;
         
         if (!name || !Category) {
             res.status(400).json({ 
@@ -57,6 +57,18 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
             return;
         }
 
+        // Validate URL format if provided
+        if (url) {
+            const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            if (!urlRegex.test(url)) {
+                res.status(400).json({ 
+                    success: false, 
+                    message: "Invalid URL format. Please provide a valid URL (e.g., https://example.com)" 
+                });
+                return;
+            }
+        }
+
         const dowry = new Dowry({ 
             name, 
             description, 
@@ -65,7 +77,8 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
             dowryImage: imageId, // Store imageId instead of image string
             dowryLocation, 
             status: status || 'not_purchased',
-            userId 
+            userId,
+            url
         });
         
         await dowry.save();
@@ -179,6 +192,20 @@ export const getDowryById = async (req: AuthRequest, res: Response) => {
 
 export const updateDowry = async (req: AuthRequest, res: Response) => {
     try {
+        const { url } = req.body;
+        
+        // Validate URL format if provided
+        if (url) {
+            const urlRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            if (!urlRegex.test(url)) {
+                res.status(400).json({ 
+                    success: false, 
+                    message: "Invalid URL format. Please provide a valid URL (e.g., https://example.com)" 
+                });
+                return;
+            }
+        }
+
         const dowry = await Dowry.findOneAndUpdate(
             { _id: req.params.id, userId: req.userId }, 
             req.body, 

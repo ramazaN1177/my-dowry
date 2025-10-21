@@ -98,6 +98,11 @@ const router = express.Router();
  *               dowryLocation:
  *                 type: string
  *                 example: "Istanbul, Turkey"
+ *               url:
+ *                 type: string
+ *                 format: uri
+ *                 example: "https://www.google.com"
+ *                 description: "Valid URL format required (e.g., https://example.com)"
  *               status:
  *                 type: string
  *                 enum: [purchased, not_purchased]
@@ -293,6 +298,11 @@ router.get('/get/:id', verifyToken, getDowryById);
  *               dowryLocation:
  *                 type: string
  *                 example: "Istanbul, Turkey"
+ *               url:
+ *                 type: string
+ *                 format: uri
+ *                 example: "https://www.google.com"
+ *                 description: "Valid URL format required (e.g., https://example.com)"
  *               status:
  *                 type: string
  *                 enum: [purchased, not_purchased]
