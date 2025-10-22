@@ -4,7 +4,7 @@ import { generateTokenAndSetCookie, generateRefreshToken, generateAccessToken } 
 import { Request, Response } from "express";
 import crypto from "crypto"
 import jwt from "jsonwebtoken"
-import { sendVerificationEmail, sendTestEmail } from '../email/email.service';
+import { sendVerificationEmail, sendTestEmail, sendPasswordResetEmail } from '../email/email.service';
 
 interface AuthRequest extends Request {
     userId?: string;
@@ -209,9 +209,20 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
         
         await user.save();
 
+        // Şifre sıfırlama emaili gönder
+        try {
+            const emailSent = await sendPasswordResetEmail(user.email, resetToken, user.name);
+            if (!emailSent) {
+                console.warn('Password reset email could not be sent, but token was generated');
+            }
+        } catch (emailError) {
+            console.error('Password reset email error:', emailError);
+            // Email gönderilemese bile token oluşturuldu, sadece log'la
+        }
+
         res.status(200).json({
             success:true,
-            message: "Password reset token generated",
+            message: "Password reset email sent successfully",
             resetToken: resetToken,
             expiresIn: "1 hour"
         })

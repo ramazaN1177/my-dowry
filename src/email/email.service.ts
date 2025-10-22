@@ -1,5 +1,5 @@
 import { sendEmail } from './email.config';
-import { createVerificationEmailTemplate } from './email.templates';
+import { createVerificationEmailTemplate, createPasswordResetEmailTemplate } from './email.templates';
 
 // Doğrulama emaili gönderme
 export const sendVerificationEmail = async (email: string, verificationCode: string, userName: string): Promise<boolean> => {
@@ -53,6 +53,14 @@ export const sendTestEmail = async (email: string): Promise<boolean> => {
     </body>
     </html>
     `;
+    
+    return await sendEmail(email, subject, html);
+};
+
+// Şifre sıfırlama emaili gönderme
+export const sendPasswordResetEmail = async (email: string, resetToken: string, userName: string): Promise<boolean> => {
+    const subject = 'Şifre Sıfırlama Talebi';
+    const html = createPasswordResetEmailTemplate(userName, resetToken);
     
     return await sendEmail(email, subject, html);
 };
