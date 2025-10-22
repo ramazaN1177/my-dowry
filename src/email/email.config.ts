@@ -34,18 +34,24 @@ export const createTransporter = (emailConfig: any) => {
             pass: emailConfig.PASS,
         },
         tls: {
-            rejectUnauthorized: false
+            rejectUnauthorized: false,
+            ciphers: 'SSLv3'
         },
-        // Timeout ayarları
-        connectionTimeout: 60000, // 60 saniye
-        greetingTimeout: 30000,    // 30 saniye
-        socketTimeout: 60000,     // 60 saniye
+        // Timeout ayarları - daha kısa
+        connectionTimeout: 15000, // 15 saniye
+        greetingTimeout: 10000,    // 10 saniye
+        socketTimeout: 15000,     // 15 saniye
         // Pool ayarları
-        pool: true,
+        pool: false, // Pool'u kapat
         maxConnections: 1,
-        maxMessages: 100,
+        maxMessages: 1,
         rateDelta: 20000,
-        rateLimit: 5
+        rateLimit: 5,
+        // DNS ayarları
+        dnsTimeout: 10000,
+        // Retry ayarları
+        retryDelay: 1000,
+        maxRetries: 3
     });
 };
 
@@ -142,6 +148,59 @@ export const sendEmailDirect = async (to: string, subject: string, html: string)
         return true;
     } catch (error: any) {
         console.error('Direct email send error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        return false;
+    }
+};
+
+// Alternatif Gmail konfigürasyonu (farklı port)
+export const createTransporterAlternative = (emailConfig: any) => {
+    return nodemailer.createTransport({
+        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465, // SSL port
+        secure: true, // SSL kullan
+        auth: {
+            user: emailConfig.USER,
+            pass: emailConfig.PASS,
+        },
+        tls: {
+            rejectUnauthorized: false
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 5000,
+        socketTimeout: 10000
+    });
+};
+
+// Alternatif email gönderme (SSL port ile)
+export const sendEmailSSL = async (to: string, subject: string, html: string): Promise<boolean> => {
+    try {
+        const emailConfig = getEmailConfig();
+        
+        console.log('Sending email with SSL (port 465)...');
+        
+        if (!emailConfig.USER || !emailConfig.PASS) {
+            console.error('Email configuration error: Missing USER or PASS');
+            return false;
+        }
+
+        const transporter = createTransporterAlternative(emailConfig);
+        
+        const mailOptions = {
+            from: emailConfig.FROM,
+            to: to,
+            subject: subject,
+            html: html
+        };
+
+        console.log('Sending mail with SSL...');
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', info.messageId);
+        return true;
+    } catch (error: any) {
+        console.error('SSL email send error:', error);
         console.error('Error code:', error.code);
         console.error('Error message:', error.message);
         return false;
