@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 // Email konfigürasyonu - Load environment variables dynamically
-export const getEmailConfig = () => ({
+const getEmailConfig = () => ({
     HOST: process.env.EMAIL_HOST ,
     PORT: parseInt(process.env.EMAIL_PORT || ''),
     SECURE: process.env.EMAIL_SECURE === 'true',
@@ -25,9 +25,10 @@ console.log('Email Config:', {
 // Nodemailer transporter oluştur
 export const createTransporter = (emailConfig: any) => {
     return nodemailer.createTransport({
-        host: emailConfig.HOST || 'smtp.gmail.com',
-        port: emailConfig.PORT || 587,
-        secure: emailConfig.SECURE || false, // 587 port için false
+        service: 'gmail', // Gmail servisi kullan
+        host: emailConfig.HOST,
+        port: emailConfig.PORT,
+        secure: emailConfig.SECURE,
         auth: {
             user: emailConfig.USER,
             pass: emailConfig.PASS,
@@ -35,7 +36,7 @@ export const createTransporter = (emailConfig: any) => {
         tls: {
             rejectUnauthorized: false
         }
-    } as any);
+    });
 };
 
 // Email gönderme fonksiyonu
@@ -64,20 +65,9 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
 
         const transporter = createTransporter(emailConfig);
         
-        // Verify transporter configuration with timeout
-        console.log('Verifying transporter...');
-        try {
-            await Promise.race([
-                transporter.verify(),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Verification timeout')), 30000)
-                )
-            ]);
-            console.log('Email transporter verified successfully');
-        } catch (verifyError: any) {
-            console.warn('Transporter verification failed, but continuing anyway:', verifyError.message);
-            // Verification başarısız olsa bile email göndermeyi deneyebiliriz
-        }
+        // Verify transporter configuration
+        await transporter.verify();
+        console.log('Email transporter verified successfully');
         
         const mailOptions = {
             from: emailConfig.FROM,
@@ -86,102 +76,14 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
             html: html
         };
 
-        console.log('Sending mail...');
         const info = await transporter.sendMail(mailOptions);
         console.log('Email sent successfully:', info.messageId);
         return true;
     } catch (error: any) {
         console.error('Email send error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        
         if (error.code === 'EAUTH') {
             console.error('Authentication failed. Please check your email credentials and app password.');
-        } else if (error.code === 'ECONNECTION') {
-            console.error('Connection failed. Check network settings.');
         }
-        return false;
-    }
-};
-
-// Alternatif email gönderme fonksiyonu (verify olmadan)
-export const sendEmailDirect = async (to: string, subject: string, html: string): Promise<boolean> => {
-    try {
-        const emailConfig = getEmailConfig();
-        
-        console.log('Sending email directly (no verification)...');
-        
-        if (!emailConfig.USER || !emailConfig.PASS) {
-            console.error('Email configuration error: Missing USER or PASS');
-            return false;
-        }
-
-        const transporter = createTransporter(emailConfig);
-        
-        const mailOptions = {
-            from: emailConfig.FROM,
-            to: to,
-            subject: subject,
-            html: html
-        };
-
-        console.log('Sending mail directly...');
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', info.messageId);
-        return true;
-    } catch (error: any) {
-        console.error('Direct email send error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        return false;
-    }
-};
-
-// Alternatif Gmail konfigürasyonu (farklı port)
-export const createTransporterAlternative = (emailConfig: any) => {
-    return nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465, // SSL port
-        secure: true, // SSL kullan
-        auth: {
-            user: emailConfig.USER,
-            pass: emailConfig.PASS,
-        },
-        tls: {
-            rejectUnauthorized: false
-        }
-    } as any);
-};
-
-// Alternatif email gönderme (SSL port ile)
-export const sendEmailSSL = async (to: string, subject: string, html: string): Promise<boolean> => {
-    try {
-        const emailConfig = getEmailConfig();
-        
-        console.log('Sending email with SSL (port 465)...');
-        
-        if (!emailConfig.USER || !emailConfig.PASS) {
-            console.error('Email configuration error: Missing USER or PASS');
-            return false;
-        }
-
-        const transporter = createTransporterAlternative(emailConfig);
-        
-        const mailOptions = {
-            from: emailConfig.FROM,
-            to: to,
-            subject: subject,
-            html: html
-        };
-
-        console.log('Sending mail with SSL...');
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', info.messageId);
-        return true;
-    } catch (error: any) {
-        console.error('SSL email send error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
         return false;
     }
 };

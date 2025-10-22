@@ -11,8 +11,6 @@ import dowryRoutes from './routes/dowry.routes';
 import imageRoutes from './routes/image.routes';
 import categoryRoutes from './routes/category.route';
 import bookRoutes from './routes/book.routes';
-import { sendTestEmail } from './email/email.service';
-import { getEmailConfig, sendEmailDirect, sendEmailSSL } from './email/email.config';
 
 // Load environment variables
 dotenv.config();
@@ -218,122 +216,6 @@ app.post('/api/debug/init-storage', (req: Request, res: Response) => {
       success: false,
       message: 'Failed to initialize storage',
       error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// Email configuration test endpoint
-app.get('/test-email-config', (req: Request, res: Response) => {
-  try {
-    const config = getEmailConfig();
-    res.json({
-      HOST: config.HOST,
-      PORT: config.PORT,
-      SECURE: config.SECURE,
-      USER: config.USER,
-      FROM: config.FROM,
-      PASS_SET: !!config.PASS,
-      ALL_ENV_VARS: {
-        EMAIL_HOST: process.env.EMAIL_HOST,
-        EMAIL_PORT: process.env.EMAIL_PORT,
-        EMAIL_SECURE: process.env.EMAIL_SECURE,
-        EMAIL_USER: process.env.EMAIL_USER,
-        EMAIL_PASS: process.env.EMAIL_PASS ? 'SET' : 'NOT_SET',
-        EMAIL_FROM: process.env.EMAIL_FROM
-      }
-    });
-  } catch (error: any) {
-    res.status(500).json({ 
-      error: error.message,
-      stack: error.stack 
-    });
-  }
-});
-
-// Email test endpoint
-app.get('/test-email', async (req: Request, res: Response) => {
-  try {
-    console.log('Starting email test...');
-    const result = await sendTestEmail('test@example.com');
-    res.json({ 
-      success: result, 
-      message: result ? 'Email sent successfully' : 'Email failed to send',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error: any) {
-    console.error('Test email error:', error);
-    res.status(500).json({ 
-      error: error.message,
-      code: error.code,
-      stack: error.stack 
-    });
-  }
-});
-
-// Simple email test endpoint
-app.get('/test-email-simple', async (req: Request, res: Response) => {
-  try {
-    console.log('Starting simple email test...');
-    const result = await sendTestEmail('test@example.com');
-    res.json({ 
-      success: result, 
-      message: result ? 'Email sent successfully' : 'Email failed to send',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error: any) {
-    console.error('Simple test email error:', error);
-    res.status(500).json({ 
-      error: error.message,
-      code: error.code,
-      stack: error.stack 
-    });
-  }
-});
-
-// Direct email test endpoint (no verification)
-app.get('/test-email-direct', async (req: Request, res: Response) => {
-  try {
-    console.log('Starting direct email test (no verification)...');
-    const result = await sendEmailDirect('test@example.com', 'Direct Test Email', `
-      <h1>Direct Email Test</h1>
-      <p>This email was sent without verification step.</p>
-      <p>Time: ${new Date().toISOString()}</p>
-    `);
-    res.json({ 
-      success: result, 
-      message: result ? 'Direct email sent successfully' : 'Direct email failed to send',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error: any) {
-    console.error('Direct test email error:', error);
-    res.status(500).json({ 
-      error: error.message,
-      code: error.code,
-      stack: error.stack 
-    });
-  }
-});
-
-// SSL email test endpoint (port 465)
-app.get('/test-email-ssl', async (req: Request, res: Response) => {
-  try {
-    console.log('Starting SSL email test (port 465)...');
-    const result = await sendEmailSSL('test@example.com', 'SSL Test Email', `
-      <h1>SSL Email Test</h1>
-      <p>This email was sent using SSL (port 465).</p>
-      <p>Time: ${new Date().toISOString()}</p>
-    `);
-    res.json({ 
-      success: result, 
-      message: result ? 'SSL email sent successfully' : 'SSL email failed to send',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error: any) {
-    console.error('SSL test email error:', error);
-    res.status(500).json({ 
-      error: error.message,
-      code: error.code,
-      stack: error.stack 
     });
   }
 });
