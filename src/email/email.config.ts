@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 // Email konfigürasyonu - Load environment variables dynamically
-const getEmailConfig = () => ({
+export const getEmailConfig = () => ({
     HOST: process.env.EMAIL_HOST ,
     PORT: parseInt(process.env.EMAIL_PORT || ''),
     SECURE: process.env.EMAIL_SECURE === 'true',
@@ -66,6 +66,7 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
         const transporter = createTransporter(emailConfig);
         
         // Verify transporter configuration
+        console.log('Verifying transporter...');
         await transporter.verify();
         console.log('Email transporter verified successfully');
         
@@ -76,13 +77,19 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
             html: html
         };
 
+        console.log('Sending mail...');
         const info = await transporter.sendMail(mailOptions);
         console.log('Email sent successfully:', info.messageId);
         return true;
     } catch (error: any) {
         console.error('Email send error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        
         if (error.code === 'EAUTH') {
             console.error('Authentication failed. Please check your email credentials and app password.');
+        } else if (error.code === 'ECONNECTION') {
+            console.error('Connection failed. Check network settings.');
         }
         return false;
     }
