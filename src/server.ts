@@ -12,7 +12,7 @@ import imageRoutes from './routes/image.routes';
 import categoryRoutes from './routes/category.route';
 import bookRoutes from './routes/book.routes';
 import { sendTestEmail } from './email/email.service';
-import { getEmailConfig } from './email/email.config';
+import { getEmailConfig, sendEmailDirect } from './email/email.config';
 
 // Load environment variables
 dotenv.config();
@@ -282,6 +282,30 @@ app.get('/test-email-simple', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Simple test email error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      code: error.code,
+      stack: error.stack 
+    });
+  }
+});
+
+// Direct email test endpoint (no verification)
+app.get('/test-email-direct', async (req: Request, res: Response) => {
+  try {
+    console.log('Starting direct email test (no verification)...');
+    const result = await sendEmailDirect('test@example.com', 'Direct Test Email', `
+      <h1>Direct Email Test</h1>
+      <p>This email was sent without verification step.</p>
+      <p>Time: ${new Date().toISOString()}</p>
+    `);
+    res.json({ 
+      success: result, 
+      message: result ? 'Direct email sent successfully' : 'Direct email failed to send',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Direct test email error:', error);
     res.status(500).json({ 
       error: error.message,
       code: error.code,

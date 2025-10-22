@@ -26,16 +26,26 @@ console.log('Email Config:', {
 export const createTransporter = (emailConfig: any) => {
     return nodemailer.createTransport({
         service: 'gmail', // Gmail servisi kullan
-        host: emailConfig.HOST,
-        port: emailConfig.PORT,
-        secure: emailConfig.SECURE,
+        host: emailConfig.HOST || 'smtp.gmail.com',
+        port: emailConfig.PORT || 587,
+        secure: emailConfig.SECURE || false, // 587 port için false
         auth: {
             user: emailConfig.USER,
             pass: emailConfig.PASS,
         },
         tls: {
             rejectUnauthorized: false
-        }
+        },
+        // Timeout ayarları
+        connectionTimeout: 60000, // 60 saniye
+        greetingTimeout: 30000,    // 30 saniye
+        socketTimeout: 60000,     // 60 saniye
+        // Pool ayarları
+        pool: true,
+        maxConnections: 1,
+        maxMessages: 100,
+        rateDelta: 20000,
+        rateLimit: 5
     });
 };
 
@@ -65,10 +75,20 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
 
         const transporter = createTransporter(emailConfig);
         
-        // Verify transporter configuration
+        // Verify transporter configuration with timeout
         console.log('Verifying transporter...');
-        await transporter.verify();
-        console.log('Email transporter verified successfully');
+        try {
+            await Promise.race([
+                transporter.verify(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Verification timeout')), 30000)
+                )
+            ]);
+            console.log('Email transporter verified successfully');
+        } catch (verifyError: any) {
+            console.warn('Transporter verification failed, but continuing anyway:', verifyError.message);
+            // Verification başarısız olsa bile email göndermeyi deneyebiliriz
+        }
         
         const mailOptions = {
             from: emailConfig.FROM,
@@ -91,6 +111,39 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
         } else if (error.code === 'ECONNECTION') {
             console.error('Connection failed. Check network settings.');
         }
+        return false;
+    }
+};
+
+// Alternatif email gönderme fonksiyonu (verify olmadan)
+export const sendEmailDirect = async (to: string, subject: string, html: string): Promise<boolean> => {
+    try {
+        const emailConfig = getEmailConfig();
+        
+        console.log('Sending email directly (no verification)...');
+        
+        if (!emailConfig.USER || !emailConfig.PASS) {
+            console.error('Email configuration error: Missing USER or PASS');
+            return false;
+        }
+
+        const transporter = createTransporter(emailConfig);
+        
+        const mailOptions = {
+            from: emailConfig.FROM,
+            to: to,
+            subject: subject,
+            html: html
+        };
+
+        console.log('Sending mail directly...');
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', info.messageId);
+        return true;
+    } catch (error: any) {
+        console.error('Direct email send error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
         return false;
     }
 };
