@@ -2,8 +2,8 @@ import nodemailer from 'nodemailer';
 
 // Email konfigürasyonu - Load environment variables dynamically
 const getEmailConfig = () => ({
-    // SMTP ayarları - Gmail yerine alternatif servisler
-    HOST: process.env.EMAIL_HOST || 'smtp.office365.com', // Outlook SMTP
+    // Gmail SMTP ayarları
+    HOST: process.env.EMAIL_HOST || 'smtp.gmail.com',
     PORT: parseInt(process.env.EMAIL_PORT || '587'),
     SECURE: process.env.EMAIL_SECURE === 'true',
     USER: process.env.EMAIL_USER || '',
@@ -73,10 +73,14 @@ console.log('Email Config:', {
 
 // Nodemailer transporter oluştur
 export const createTransporter = (emailConfig: any) => {
+    // Gmail için özel konfigürasyon
+    const isGmail = emailConfig.HOST === 'smtp.gmail.com';
+    
     return nodemailer.createTransport({
+        service: isGmail ? 'gmail' : undefined,
         host: emailConfig.HOST,
-        port: emailConfig.PORT,
-        secure: emailConfig.SECURE,
+        port: isGmail ? 465 : emailConfig.PORT, // Gmail için 465 portu
+        secure: isGmail ? true : emailConfig.SECURE, // Gmail için SSL
         auth: {
             user: emailConfig.USER,
             pass: emailConfig.PASS,
