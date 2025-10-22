@@ -2,8 +2,8 @@ import nodemailer from 'nodemailer';
 
 // Email konfigürasyonu - Load environment variables dynamically
 const getEmailConfig = () => ({
-    // Gmail SMTP ayarları
-    HOST: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    // SMTP ayarları - Gmail yerine alternatif servisler
+    HOST: process.env.EMAIL_HOST || 'smtp.office365.com', // Outlook SMTP
     PORT: parseInt(process.env.EMAIL_PORT || '587'),
     SECURE: process.env.EMAIL_SECURE === 'true',
     USER: process.env.EMAIL_USER || '',
@@ -11,9 +11,9 @@ const getEmailConfig = () => ({
     FROM: process.env.EMAIL_FROM || process.env.EMAIL_USER || '',
 
     // Render için optimize edilmiş timeout değerleri
-    connectionTimeout: 30000, // 30 saniye
-    greetingTimeout: 15000,   // 15 saniye
-    socketTimeout: 30000,     // 30 saniye
+    connectionTimeout: 10000, // 10 saniye
+    greetingTimeout: 5000,   // 5 saniye
+    socketTimeout: 10000,     // 10 saniye
 
     // Connection pool ayarları
     pool: false, // Pool'u kapat, tek bağlantı kullan
@@ -25,8 +25,8 @@ const getEmailConfig = () => ({
     rateLimit: 1,
 
     // Retry ayarları
-    retryDelay: 5000,
-    maxRetries: 3,
+    retryDelay: 2000,
+    maxRetries: 2,
 });
 
 export const EMAIL_CONFIG = getEmailConfig();
@@ -74,7 +74,6 @@ console.log('Email Config:', {
 // Nodemailer transporter oluştur
 export const createTransporter = (emailConfig: any) => {
     return nodemailer.createTransport({
-        service: 'gmail', // Gmail servisi kullan
         host: emailConfig.HOST,
         port: emailConfig.PORT,
         secure: emailConfig.SECURE,
@@ -82,7 +81,10 @@ export const createTransporter = (emailConfig: any) => {
             user: emailConfig.USER,
             pass: emailConfig.PASS,
         },
-        // TLS ayarları - varsayılan güvenli ayarlar kullanılır
+        tls: {
+            rejectUnauthorized: false,
+            ciphers: 'TLSv1.2'
+        },
         // Render için optimize edilmiş ayarlar
         connectionTimeout: emailConfig.connectionTimeout,
         greetingTimeout: emailConfig.greetingTimeout,
@@ -95,14 +97,14 @@ export const createTransporter = (emailConfig: any) => {
     });
 };
 
-// Gmail SMTP ile email gönderme
-const sendEmailWithGmail = async (to: string, subject: string, html: string, emailConfig: any): Promise<boolean> => {
+// SMTP ile email gönderme
+const sendEmailWithSMTP = async (to: string, subject: string, html: string, emailConfig: any): Promise<boolean> => {
     const maxRetries = emailConfig.maxRetries || 3;
     const retryDelay = emailConfig.retryDelay || 5000;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            console.log(`Gmail email gönderme denemesi ${attempt}/${maxRetries}`);
+            console.log(`SMTP email gönderme denemesi ${attempt}/${maxRetries}`);
             
             // Debug: Log the configuration being used
             console.log('Sending email with config:', {
@@ -124,9 +126,8 @@ const sendEmailWithGmail = async (to: string, subject: string, html: string, ema
 
             const transporter = createTransporter(emailConfig);
             
-            // Verify transporter configuration
-            await transporter.verify();
-            console.log('Email transporter verified successfully');
+            // Verify işlemini atla - Render'da sorun yaratıyor
+            console.log('Email transporter created, skipping verify for Render compatibility');
             
             const mailOptions = {
                 from: emailConfig.FROM,
@@ -140,7 +141,7 @@ const sendEmailWithGmail = async (to: string, subject: string, html: string, ema
             return true;
             
         } catch (error: any) {
-            console.error(`Gmail email send error (attempt ${attempt}/${maxRetries}):`, error);
+            console.error(`SMTP email send error (attempt ${attempt}/${maxRetries}):`, error);
             
             if (error.code === 'EAUTH') {
                 console.error('Authentication failed. Please check your email credentials and app password.');
@@ -156,7 +157,7 @@ const sendEmailWithGmail = async (to: string, subject: string, html: string, ema
             }
             
             if (attempt === maxRetries) {
-                console.error('All Gmail email send attempts failed');
+                console.error('All SMTP email send attempts failed');
                 return false;
             }
         }
@@ -176,6 +177,6 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
         return false;
     }
     
-    console.log('Gmail SMTP ile email gönderiliyor...');
-    return await sendEmailWithGmail(to, subject, html, emailConfig);
+    console.log('SMTP ile email gönderiliyor...');
+    return await sendEmailWithSMTP(to, subject, html, emailConfig);
 };
