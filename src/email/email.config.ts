@@ -7,7 +7,19 @@ const getEmailConfig = () => ({
     SECURE: process.env.EMAIL_SECURE === 'true',
     USER: process.env.EMAIL_USER || '',
     PASS: process.env.EMAIL_PASS || '',
-    FROM: process.env.EMAIL_FROM || process.env.EMAIL_USER || ''
+    FROM: process.env.EMAIL_FROM || process.env.EMAIL_USER || '',
+
+    connectionTimeout: 60000,
+    greetingTimeout: 30000,
+    socketTimeout: 60000,
+
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 1,
+
+    rateDelta: 20000,
+    rateLimit: 1,
+
 });
 
 export const EMAIL_CONFIG = getEmailConfig();
