@@ -25,7 +25,6 @@ console.log('Email Config:', {
 // Nodemailer transporter oluştur
 export const createTransporter = (emailConfig: any) => {
     return nodemailer.createTransport({
-        service: 'gmail', // Gmail servisi kullan
         host: emailConfig.HOST || 'smtp.gmail.com',
         port: emailConfig.PORT || 587,
         secure: emailConfig.SECURE || false, // 587 port için false
@@ -34,25 +33,9 @@ export const createTransporter = (emailConfig: any) => {
             pass: emailConfig.PASS,
         },
         tls: {
-            rejectUnauthorized: false,
-            ciphers: 'SSLv3'
-        },
-        // Timeout ayarları - daha kısa
-        connectionTimeout: 15000, // 15 saniye
-        greetingTimeout: 10000,    // 10 saniye
-        socketTimeout: 15000,     // 15 saniye
-        // Pool ayarları
-        pool: false, // Pool'u kapat
-        maxConnections: 1,
-        maxMessages: 1,
-        rateDelta: 20000,
-        rateLimit: 5,
-        // DNS ayarları
-        dnsTimeout: 10000,
-        // Retry ayarları
-        retryDelay: 1000,
-        maxRetries: 3
-    });
+            rejectUnauthorized: false
+        }
+    } as any);
 };
 
 // Email gönderme fonksiyonu
@@ -157,7 +140,6 @@ export const sendEmailDirect = async (to: string, subject: string, html: string)
 // Alternatif Gmail konfigürasyonu (farklı port)
 export const createTransporterAlternative = (emailConfig: any) => {
     return nodemailer.createTransport({
-        service: 'gmail',
         host: 'smtp.gmail.com',
         port: 465, // SSL port
         secure: true, // SSL kullan
@@ -167,11 +149,8 @@ export const createTransporterAlternative = (emailConfig: any) => {
         },
         tls: {
             rejectUnauthorized: false
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 5000,
-        socketTimeout: 10000
-    });
+        }
+    } as any);
 };
 
 // Alternatif email gönderme (SSL port ile)
