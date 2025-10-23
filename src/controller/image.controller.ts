@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { Image } from '../models/image.model';
-import { OCRService } from '../ocrService';
 
 interface AuthRequest extends Request {
     userId?: string;
@@ -258,9 +257,9 @@ export const processImageOCR = async (req: AuthRequest, res: Response): Promise<
             return;
         }
 
-        // Process image with OCR
-        console.log('Starting OCR processing for image:', id);
-        const bookInfo = await OCRService.processBookImage(image.data);
+        // OCR service is temporarily disabled
+        console.log('OCR service is temporarily disabled for image:', id);
+        const bookInfo = null;
 
         if (!bookInfo) {
             res.status(200).json({
@@ -271,14 +270,11 @@ export const processImageOCR = async (req: AuthRequest, res: Response): Promise<
             return;
         }
 
-        // Return book information
+        // Return book information (OCR disabled)
         res.status(200).json({
             success: true,
-            message: 'Book information extracted successfully',
-            bookInfo: {
-                title: bookInfo.title,
-                author: bookInfo.author
-            }
+            message: 'OCR service is temporarily disabled',
+            bookInfo: null
         });
 
     } catch (error) {
