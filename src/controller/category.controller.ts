@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { Category } from "../models/category.model";
 import { Dowry } from "../models/dowry.model";
 import { Image } from "../models/image.model";
+import { Book } from "../models/book.model";
 interface AuthRequest extends Request {
     userId?: string;
 }
@@ -122,13 +123,18 @@ export const addCategory = async (req: AuthRequest, res: Response) => {
                 Category: categoryId,
                 userId: userId 
             });
+
+            const deletedBooks = await Book.deleteMany({
+                Category: categoryId,
+                userId: userId 
+            });
     
             // Kategoriyi sil
             await Category.findByIdAndDelete(categoryId);
     
             res.status(200).json({ 
                 success: true, 
-                message: `Category, ${deletedDowries.deletedCount} associated dowries, and ${deletedImagesCount} associated images deleted successfully` 
+                message: `Category, ${deletedDowries.deletedCount} associated dowries, ${deletedBooks.deletedCount} associated books, and ${deletedImagesCount} associated images deleted successfully` 
             });
         } catch (error) {
             console.error('Delete Category Error:', error);
