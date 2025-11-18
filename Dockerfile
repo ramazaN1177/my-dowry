@@ -9,7 +9,7 @@ ENV NODE_ENV=development
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (including devDependencies for TypeScript build)
+# Install all dependencies (including devDependencies for TypeScript build)
 RUN npm ci
 
 # Copy source code
@@ -18,20 +18,19 @@ COPY . .
 # Build TypeScript to JavaScript
 RUN npm run build
 
+# Create production node_modules by pruning devDependencies
+RUN npm prune --production && rm -rf /root/.npm /tmp/*
+
 # Production stage
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Verify npm is available
-RUN npm --version
-
 # Copy package files
-COPY package*.json ./
+COPY --from=builder /app/package*.json ./
 
-# Install only production dependencies
-RUN npm install --omit=dev --no-audit --no-fund
-RUN rm -rf /root/.npm /tmp/* || true
+# Copy production node_modules from builder
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
