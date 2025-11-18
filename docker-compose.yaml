@@ -2,16 +2,19 @@ version: '3.8'
 
 services: 
   backend:
-    build:
-      context: ./backend
-      dockerfile: DockerFile
+    image: node:18-alpine
     container_name: my-dowry-backend
+    working_dir: /app
     ports:
       - "5000:5000"
     env_file:
-      - ./backend/.env
+      - .env
     environment:
       - NODE_ENV=production
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run build && npm start"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
@@ -25,4 +28,5 @@ services:
 networks:
   my-dowry-network:
     driver: bridge
+
 
