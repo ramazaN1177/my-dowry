@@ -23,12 +23,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Verify npm is available
+RUN npm --version
+
 # Copy package files
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --omit=dev
-RUN rm -rf /root/.npm || true
+RUN npm install --omit=dev --no-audit --no-fund
+RUN rm -rf /root/.npm /tmp/* || true
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
