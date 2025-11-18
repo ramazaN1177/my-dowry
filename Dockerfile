@@ -6,14 +6,16 @@ FROM node:20-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Set NODE_ENV to development for build (ensures devDependencies are installed)
+# Accept NODE_ENV as build arg (Coolify injects this), but force to development for build
+ARG NODE_ENV=production
+# Force NODE_ENV to development for build stage (needed for devDependencies)
 ENV NODE_ENV=development
 
 # Copy package files first for better layer caching
 COPY package*.json ./
 
 # Install all dependencies (including devDependencies for TypeScript build)
-RUN npm install --legacy-peer-deps
+RUN npm install --no-audit --no-fund
 
 # Copy source code
 COPY . .
