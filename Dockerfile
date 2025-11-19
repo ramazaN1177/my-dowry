@@ -2,7 +2,13 @@
 FROM node:20-alpine AS builder
 
 # Install build dependencies for native modules (sharp için)
-RUN apk add --no-cache python3 make g++ vips-dev
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    vips-dev \
+    libc6-compat \
+    && ln -sf python3 /usr/bin/python
 
 WORKDIR /app
 
@@ -10,8 +16,9 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies (npm ci yerine npm install kullan)
-RUN npm install
+# Clear npm cache and install dependencies
+RUN npm cache clean --force && \
+    npm install --verbose
 
 # Copy source code
 COPY src ./src
@@ -31,7 +38,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install only production dependencies (postinstall script'ini çalıştırma)
-RUN npm install --production --ignore-scripts
+RUN npm cache clean --force && \
+    npm install --production --ignore-scripts
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
