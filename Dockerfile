@@ -12,12 +12,12 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy only package.json (package-lock.json'ı ignore et)
+COPY package.json ./
 COPY tsconfig.json ./
 
-# Install ALL dependencies (dev + production) for building
-RUN npm install
+# Install dependencies without package-lock.json
+RUN npm install --no-audit --no-fund --legacy-peer-deps
 
 # Copy source code
 COPY src ./src
@@ -25,7 +25,7 @@ COPY src ./src
 # Build TypeScript
 RUN npm run build
 
-# Prune dev dependencies (sadece production bağımlılıklarını bırak)
+# Prune dev dependencies
 RUN npm prune --production
 
 # Production stage
@@ -39,7 +39,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Copy production node_modules from builder (npm install yapmadan)
+# Copy production node_modules from builder
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built files from builder
