@@ -8,8 +8,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (skip scripts to avoid postinstall running without source files)
+RUN npm ci --ignore-scripts
 
 # Copy source files
 COPY src ./src
@@ -26,8 +26,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci && npm cache clean --force
+# Install only production dependencies (skip scripts since we don't need to build)
+RUN npm ci  --ignore-scripts && npm cache clean --force
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
@@ -54,4 +54,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # Start the application
 CMD ["node", "dist/server.js"]
-
