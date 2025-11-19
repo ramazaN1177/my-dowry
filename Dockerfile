@@ -1,6 +1,9 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+# Install build dependencies for native modules (sharp için)
+RUN apk add --no-cache python3 make g++ vips-dev
+
 WORKDIR /app
 
 # Copy package files
@@ -18,6 +21,9 @@ RUN npm run build
 
 # Production stage
 FROM node:20-alpine
+
+# Install runtime dependencies for sharp
+RUN apk add --no-cache vips
 
 WORKDIR /app
 
