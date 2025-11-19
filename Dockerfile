@@ -1,37 +1,42 @@
-# 1. Node image seç (projende Node 20 ile uyumlu)
-FROM node:20-alpine AS builder
+# -----------------------------
+# Builder Stage
+# -----------------------------
+    FROM node:20 AS builder
 
-# 2. Çalışma dizini
-WORKDIR /app
-
-# 3. package.json ve package-lock.json kopyala
-COPY package*.json ./
-
-# 4. Gerekli build araçlarını yükle (sharp için)
-RUN apk add --no-cache python3 make g++ 
-
-# 5. npm install
-RUN npm install --no-audit --no-fund
-
-# 6. Tüm kaynak kodu kopyala
-COPY . .
-
-# 7. TypeScript build
-RUN npm run build
-
-# --------------------------
-# Prod image
-FROM node:20-alpine AS prod
-
-WORKDIR /app
-
-# 8. Production dependencies kopyala
-COPY package*.json ./
-RUN npm install --no-audit --no-fund --production
-
-# 9. Build dosyalarını kopyala
-COPY --from=builder /app/dist ./dist
-
-# 10. Port ve start komutu
-EXPOSE 3000
-CMD ["node", "dist/server.js"]
+    WORKDIR /app
+    
+    # Build için gerekli araçlar (sharp vs.)
+    RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+    
+    # package dosyalarını kopyala
+    COPY package*.json ./
+    
+    # Dependencies yükle
+    RUN npm install --no-audit --no-fund
+    
+    # Tüm kaynak kodu kopyala
+    COPY . .
+    
+    # TypeScript build
+    RUN npm run build
+    
+    # -----------------------------
+    # Production Stage
+    # -----------------------------
+    FROM node:20 AS prod
+    
+    WORKDIR /app
+    
+    # Production dependencies yükle
+    COPY package*.json ./
+    RUN npm install --no-audit --no-fund --production
+    
+    # Build edilmiş dosyaları kopyala
+    COPY --from=builder /app/dist ./dist
+    
+    # Port
+    EXPOSE 3000
+    
+    # Start komutu
+    CMD ["node", "dist/server.js"]
+    
