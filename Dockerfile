@@ -1,8 +1,14 @@
 # Build stage
 FROM node:20-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++ vips-dev libc6-compat
+# Install build dependencies for native modules (sharp için)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    vips-dev \
+    libc6-compat \
+    && ln -sf python3 /usr/bin/python
 
 WORKDIR /app
 
@@ -10,15 +16,17 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies with legacy peer deps (uyumluluk için)
-RUN npm cache clean --force && \
-    npm install --legacy-peer-deps
+# Install ALL dependencies (dev + production) for building
+RUN npm install
 
 # Copy source code
 COPY src ./src
 
 # Build TypeScript
 RUN npm run build
+
+# Prune dev dependencies (sadece production bağımlılıklarını bırak)
+RUN npm prune --production
 
 # Production stage
 FROM node:20-alpine
@@ -31,9 +39,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm cache clean --force && \
-    npm install --production --ignore-scripts --legacy-peer-deps
+# Copy production node_modules from builder (npm install yapmadan)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
