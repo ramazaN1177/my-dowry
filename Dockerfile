@@ -1,60 +1,37 @@
-# ============================================
-# Build Stage
-# ============================================
-FROM node:20-slim AS builder
+# 1. Node image seç (projende Node 20 ile uyumlu)
+FROM node:20-alpine AS builder
 
-# Set working directory
+# 2. Çalışma dizini
 WORKDIR /app
 
-ARG NODE_ENV=production
-ENV NODE_ENV=development
-
-# Install build dependencies for sharp/libvips
-RUN apt-get update && apt-get install -y \
-    python3 \
-    build-essential \
-    libvips-dev \
-    && rm -rf /var/lib/apt/lists/*
-
+# 3. package.json ve package-lock.json kopyala
 COPY package*.json ./
 
+# 4. Gerekli build araçlarını yükle (sharp için)
+RUN apk add --no-cache python3 make g++ 
+
+# 5. npm install
 RUN npm install --no-audit --no-fund
 
+# 6. Tüm kaynak kodu kopyala
 COPY . .
 
+# 7. TypeScript build
 RUN npm run build
 
-RUN npm prune --production && \
-    rm -rf /root/.npm /tmp/* ~/.npm
-
-# ============================================
-# Production Stage
-# ============================================
-FROM node:20-slim
+# --------------------------
+# Prod image
+FROM node:20-alpine AS prod
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    libvips-dev \
-    && rm -rf /var/lib/apt/lists/*
+# 8. Production dependencies kopyala
+COPY package*.json ./
+RUN npm install --no-audit --no-fund --production
 
-RUN addgroup --gid 1001 nodejs && \
-    adduser --uid 1001 --ingroup nodejs --disabled-password nodejs
+# 9. Build dosyalarını kopyala
+COPY --from=builder /app/dist ./dist
 
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-
-RUN mkdir -p uploads && chown -R nodejs:nodejs uploads
-
-USER nodejs
-
-EXPOSE 5000
-
-ENV NODE_ENV=production
-ENV PORT=5000
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
-
+# 10. Port ve start komutu
+EXPOSE 3000
 CMD ["node", "dist/server.js"]
