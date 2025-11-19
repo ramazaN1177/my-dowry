@@ -21,11 +21,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files (package.json ve package-lock.json)
+# Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --omit=dev
+# Install only production dependencies (postinstall script'ini çalıştırma)
+RUN npm install --production --ignore-scripts
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
