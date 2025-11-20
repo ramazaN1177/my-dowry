@@ -122,8 +122,32 @@ app.use(express.json({ limit: '10mb' })); // JSON size limit
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Swagger configuration
-const swaggerOptions = {
+// Function to get server URL dynamically
+const getServerUrl = (req?: Request): string => {
+  // Check for environment variable first
+  if (process.env.SERVER_URL) {
+    return process.env.SERVER_URL;
+  }
+  
+  // If request is available, use it to determine URL
+  if (req) {
+    const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+    const host = req.headers.host || req.headers['x-forwarded-host'];
+    if (host) {
+      return `${protocol}://${host}`;
+    }
+  }
+  
+  // Fallback based on NODE_ENV
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://api.mydowry.ramazancavus.com.tr';
+  }
+  
+  return `http://localhost:${PORT}`;
+};
+
+// Swagger configuration - will be generated dynamically per request
+const getSwaggerOptions = (req?: Request) => ({
   definition: {
     openapi: '3.0.0',
     info: {
@@ -133,9 +157,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: process.env.NODE_ENV === 'production' 
-          ? 'https://api.mydowry.ramazancavus.com.tr'  // Coolify URL
-          : `http://localhost:${PORT}`,
+        url: getServerUrl(req),
         description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server'
       }
     ],
@@ -190,29 +212,37 @@ const swaggerOptions = {
     // Otherwise use TypeScript source files (development)
     return ['./src/routes/*.ts', './src/controller/*.ts'];
   })() // JSDoc yorumlarını içeren dosyalar
-};
+});
 
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
+// Swagger UI - dinamik olarak oluşturuluyor
+app.use('/api-docs', swaggerUi.serve, (req: Request, res: Response, next: any) => {
+  const swaggerOptions = getSwaggerOptions(req);
+  const swaggerSpec = swaggerJsdoc(swaggerOptions);
+  
+  const swaggerUiHandler = swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    swaggerOptions: {
+      urls: [
+        {
+          url: `/api-docs.json`,
+          name: 'MyDowry API v1.0.0'
+        }
+      ],
+      validatorUrl: null, // Swagger validator'ı devre dışı bırak
+      docExpansion: 'list', // Dokümantasyon genişletme seviyesi
+      defaultModelsExpandDepth: 2,
+      defaultModelExpandDepth: 2
+    }
+  });
+  
+  swaggerUiHandler(req, res, next);
+});
 
-// Swagger UI - sadece JSON linki için
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  explorer: true,
-  swaggerOptions: {
-    urls: [
-      {
-        url: `/api-docs.json`,
-        name: 'MyDowry API v1.0.0'
-      }
-    ],
-    validatorUrl: null, // Swagger validator'ı devre dışı bırak
-    docExpansion: 'list', // Dokümantasyon genişletme seviyesi
-    defaultModelsExpandDepth: 2,
-    defaultModelExpandDepth: 2
-  }
-}));
-
-// JSON Schema endpoint
+// JSON Schema endpoint - dinamik olarak oluşturuluyor
 app.get('/api-docs.json', (req: Request, res: Response) => {
+  const swaggerOptions = getSwaggerOptions(req);
+  const swaggerSpec = swaggerJsdoc(swaggerOptions);
+  
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
