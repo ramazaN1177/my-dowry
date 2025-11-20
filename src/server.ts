@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import mongoose from 'mongoose';
+import path from 'path';
 import connectDB from './db/connectDB';
 import authRoutes from './routes/auth.route';
 import dowryRoutes from './routes/dowry.routes';
@@ -124,26 +125,43 @@ const swaggerOptions = {
       }
     ]
   },
-  apis: ['./src/routes/*.ts', './src/controller/*.ts'] // JSDoc yorumlarını içeren dosyalar
+  apis: [
+    // Development için src klasöründeki .ts dosyaları
+    path.resolve(process.cwd(), 'src/routes/*.ts'),
+    path.resolve(process.cwd(), 'src/controller/*.ts'),
+    // Production için dist klasöründeki .js dosyaları (JSDoc yorumları korunur)
+    path.resolve(process.cwd(), 'dist/routes/*.js'),
+    path.resolve(process.cwd(), 'dist/controller/*.js'),
+    // Alternatif path'ler (Docker container içinde)
+    path.resolve(process.cwd(), 'backend/src/routes/*.ts'),
+    path.resolve(process.cwd(), 'backend/src/controller/*.ts'),
+    path.resolve(process.cwd(), 'backend/dist/routes/*.js'),
+    path.resolve(process.cwd(), 'backend/dist/controller/*.js')
+  ] // JSDoc yorumlarını içeren dosyalar
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Swagger UI - sadece JSON linki için
+// Debug: Swagger spec'inin doğru oluşturulup oluşturulmadığını kontrol et
+if (process.env.NODE_ENV === 'development') {
+  console.log('Swagger paths found:', Object.keys(swaggerSpec.paths || {}).length);
+  if (Object.keys(swaggerSpec.paths || {}).length === 0) {
+    console.warn('WARNING: No Swagger paths found! Check if JSDoc comments are present in route files.');
+  }
+}
+
+// Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   explorer: true,
   swaggerOptions: {
-    urls: [
-      {
-        url: `/api-docs.json`,
-        name: 'MyDowry API v1.0.0'
-      }
-    ],
     validatorUrl: null, // Swagger validator'ı devre dışı bırak
     docExpansion: 'list', // Dokümantasyon genişletme seviyesi
     defaultModelsExpandDepth: 2,
-    defaultModelExpandDepth: 2
-  }
+    defaultModelExpandDepth: 2,
+    filter: true, // Filter/search özelliğini etkinleştir
+    showRequestHeaders: true
+  },
+  customCss: '.swagger-ui .topbar { display: none }' // Topbar'ı gizle
 }));
 
 // JSON Schema endpoint
