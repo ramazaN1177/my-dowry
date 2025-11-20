@@ -5,6 +5,8 @@ import cookieParser from 'cookie-parser';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import mongoose from 'mongoose';
+import fs from 'fs';
+import path from 'path';
 import connectDB from './db/connectDB';
 import authRoutes from './routes/auth.route';
 import dowryRoutes from './routes/dowry.routes';
@@ -124,7 +126,19 @@ const swaggerOptions = {
       }
     ]
   },
-  apis: ['./src/routes/*.ts', './src/controller/*.ts'] // JSDoc yorumlarını içeren dosyalar
+  // Use compiled JS files in production/Docker/Coolify, TS files in development
+  // Check if source files exist - if not, we're in a production build (Docker/Coolify)
+  apis: (() => {
+    const sourceRoutesPath = path.join(process.cwd(), 'src', 'routes');
+    const sourceExists = fs.existsSync(sourceRoutesPath);
+    
+    // If source doesn't exist (production build), use compiled JS files
+    if (!sourceExists) {
+      return ['./dist/routes/*.js', './dist/controller/*.js'];
+    }
+    // Otherwise use TypeScript source files (development)
+    return ['./src/routes/*.ts', './src/controller/*.ts'];
+  })() // JSDoc yorumlarını içeren dosyalar
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
