@@ -29,8 +29,8 @@ const PORT: number = parseInt(process.env.PORT || '5000', 10);
 // CORS configuration for mobile apps and Swagger UI
 const corsOrigins = process.env.NODE_ENV === 'production' 
   ? [
-      'https://mydowry-backend.onrender.com',  // Render backend URL
-      'https://your-frontend-domain.com',      // Frontend domain'inizi buraya yazın
+      'https://api.mydowry.ramazancavus.com.tr',  // Coolify backend URL
+      'https://mydowry.ramazancavus.com.tr',      // Frontend domain (if exists)
       // Mobil uygulamalar için tüm origin'lere izin ver
       true
     ]
@@ -44,8 +44,57 @@ const corsOrigins = process.env.NODE_ENV === 'production'
       /^http:\/\/127\.0\.0\.1:\d+$/
     ];
 
-app.use(cors({
-  origin: corsOrigins,
+// CORS function that allows same-origin requests (for Swagger UI)
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps, Postman, or same-origin requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Get server hostname for same-origin check (Swagger UI runs on same server)
+    const getHostname = (url: string) => {
+      try {
+        const urlObj = new URL(url);
+        return urlObj.hostname;
+      } catch {
+        return url.split('://')[1]?.split(':')[0] || '';
+      }
+    };
+    
+    const serverUrl = process.env.NODE_ENV === 'production' 
+      ? process.env.SERVER_URL || 'https://api.mydowry.ramazancavus.com.tr'
+      : `http://localhost:${PORT}`;
+    
+    const serverHostname = getHostname(serverUrl);
+    const originHostname = getHostname(origin);
+    
+    // Always allow same-origin requests (Swagger UI runs on same server)
+    if (originHostname === serverHostname || originHostname === 'localhost' || originHostname === '127.0.0.1') {
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
+    if (process.env.NODE_ENV === 'production') {
+      // In production, allow all origins if true is in the list
+      if (corsOrigins.includes(true as any)) {
+        return callback(null, true);
+      }
+    }
+    
+    // Check if origin matches any pattern in corsOrigins
+    const isAllowed = corsOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return allowedOrigin === origin;
+      }
+      if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return allowedOrigin === true;
+    });
+    
+    callback(isAllowed ? null : new Error('Not allowed by CORS'), isAllowed);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
@@ -62,10 +111,12 @@ app.use(cors({
     'Content-Type',
     'Content-Length'
   ]
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Preflight requests için
-app.options('*', cors());
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' })); // JSON size limit
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -83,7 +134,7 @@ const swaggerOptions = {
     servers: [
       {
         url: process.env.NODE_ENV === 'production' 
-          ? 'https://my-dowry.onrender.com'  // Render URL'nizi buraya yazın
+          ? 'https://api.mydowry.ramazancavus.com.tr'  // Coolify URL
           : `http://localhost:${PORT}`,
         description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server'
       }
