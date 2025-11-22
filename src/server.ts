@@ -52,9 +52,7 @@ const corsOptions = process.env.NODE_ENV === 'production'
       origin: [
         'http://localhost:3000',
         'http://localhost:3001', 
-        'http://localhost:5000',
         'http://127.0.0.1:3000',
-        'http://127.0.0.1:5000',
         /^http:\/\/localhost:\d+$/,
         /^http:\/\/127\.0\.0\.1:\d+$/
       ],
@@ -316,8 +314,10 @@ app.listen(PORT, '0.0.0.0', async () => {
   try {
     await connectDB();
     console.log(`Server running on port ${PORT}`);
-    console.log(`Swagger UI available at: http://localhost:${PORT}/api-docs`);
-    console.log(`OpenAPI specification available at: http://localhost:${PORT}/v1/openapi.json`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Swagger UI available at: http://localhost:${PORT}/api-docs`);
+      console.log(`OpenAPI specification available at: http://localhost:${PORT}/v1/openapi.json`);
+    }
   } catch (error) {
     console.error('Failed to connect to database:', error);
     process.exit(1);
