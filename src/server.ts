@@ -1,4 +1,5 @@
 import express, { Application, Request, Response } from 'express';
+import http from 'http';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -309,8 +310,15 @@ app.use('*', (req: Request, res: Response) => {
   });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', async () => {
+// Start server with timeout settings
+const server = http.createServer(app);
+
+// Set timeout to prevent 504 Gateway Timeout errors
+server.timeout = 120000; // 2 minutes - max request processing time
+server.keepAliveTimeout = 65000; // 65 seconds - keep connections alive
+server.headersTimeout = 66000; // 66 seconds - should be > keepAliveTimeout
+
+server.listen(PORT, '0.0.0.0', async () => {
   try {
     await connectDB();
     console.log(`Server running on port ${PORT}`);
