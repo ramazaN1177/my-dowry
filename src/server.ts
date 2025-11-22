@@ -233,20 +233,6 @@ app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'MyDowry Backend API is running!' });
 });
 
-// Health check route with upload system status
-app.get('/health', (req: Request, res: Response) => {
-  const { isStorageReady } = require('./middleware/upload');
-  const serverUrl = getServerUrl(req);
-  res.json({ 
-    message: 'MyDowry Backend API is running!',
-    serverUrl: serverUrl,
-    healthEndpoint: `${serverUrl}/health`,
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    uploadSystem: 'simple-storage (GridFS disabled)',
-    status: 'ready'
-  });
-});
-
 // Manual storage initialization endpoint (for debugging)
 app.post('/api/debug/init-storage', (req: Request, res: Response) => {
   try {
