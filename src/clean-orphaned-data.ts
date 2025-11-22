@@ -17,18 +17,11 @@ const connectDB = async (): Promise<void> => {
       throw new Error('MONGO_URI or MONGODB_URI environment variable is not defined');
     }
 
-    const isProduction = process.env.NODE_ENV === 'production';
-
     const options = {
-      maxPoolSize: isProduction ? 50 : 10,
-      minPoolSize: isProduction ? 5 : 1,
-      serverSelectionTimeoutMS: isProduction ? 30000 : 5000,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
-      connectTimeoutMS: isProduction ? 30000 : 10000,
-      heartbeatFrequencyMS: 10000,
-      retryWrites: true,
-      retryReads: true,
-      bufferCommands: isProduction ? true : false,
+      bufferCommands: false,
     };
 
     await mongoose.connect(mongoURI, options);

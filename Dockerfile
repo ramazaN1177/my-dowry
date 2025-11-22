@@ -45,5 +45,8 @@ RUN chown -R nodejs:nodejs /app
 # Switch to non-root user
 USER nodejs
 
+# Expose port
+EXPOSE 5000
+
 # Start the application
 CMD ["node", "dist/server.js"]
