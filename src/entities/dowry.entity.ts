@@ -44,9 +44,6 @@ export class Dowry {
   })
   status: DowryStatus;
 
-  @Column({ type: 'boolean', default: false })
-  isRead: boolean;
-
   @Column({ type: 'uuid' })
   userId: string;
 

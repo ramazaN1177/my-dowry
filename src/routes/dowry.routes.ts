@@ -38,17 +38,12 @@ const router = express.Router();
  *         dowryPrice:
  *           type: number
  *           example: 5000
- *         dowryImageId:
- *           type: string
- *           format: uuid
- *           nullable: true
- *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         imageUrl:
  *           type: string
  *           format: uri
  *           nullable: true
- *           example: "http://minio:9000/bucket/users/.../images/..."
- *           description: "Public URL of the dowry image from MinIO"
+ *           example: "http://5.133.102.127:9000/mydowry-images/users/.../images/..."
+ *           description: "Public URL of the dowry image from MinIO (stored directly in dowry table)"
  *         dowryLocation:
  *           type: string
  *           nullable: true
@@ -62,9 +57,6 @@ const router = express.Router();
  *           type: string
  *           enum: [purchased, not_purchased]
  *           example: "not_purchased"
- *         isRead:
- *           type: boolean
- *           example: false
  *         userId:
  *           type: string
  *           format: uuid
@@ -180,11 +172,6 @@ router.post('/create', verifyToken, uploadDowryImage, createDowry);
  *         description: Search in name and description fields
  *         schema:
  *           type: string
- *       - in: query
- *         name: isRead
- *         description: Filter by read status (for books)
- *         schema:
- *           type: boolean
  *       - in: query
  *         name: page
  *         description: Page number
@@ -335,9 +322,6 @@ router.get('/get/:id', verifyToken, getDowryById);
  *                 type: string
  *                 enum: [purchased, not_purchased]
  *                 example: "purchased"
- *               isRead:
- *                 type: boolean
- *                 example: false
  *     responses:
  *       200:
  *         description: Dowry updated successfully
@@ -428,7 +412,7 @@ router.patch('/status/:id', verifyToken, updateDowryStatus);
  * /api/dowry/image/{id}:
  *   delete:
  *     summary: Delete dowry image
- *     description: Delete the image of a specific dowry. The image will be removed from the database and the dowry's image reference will be cleared.
+ *     description: Delete the image of a specific dowry. The image will be removed from MinIO and the dowry's imageUrl will be set to null.
  *     tags: [Dowry]
  *     security:
  *       - bearerAuth: []
@@ -475,7 +459,7 @@ router.delete('/image/:id', verifyToken, deleteDowryImage);
  * /api/dowry/delete/{id}:
  *   delete:
  *     summary: Delete dowry
- *     description: Delete a specific dowry
+ *     description: Delete a specific dowry and its associated image from MinIO (if exists)
  *     tags: [Dowry]
  *     security:
  *       - bearerAuth: []

@@ -133,7 +133,7 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        const { status, Category, search, page = 1, limit = 10, isRead } = req.query;
+        const { status, Category, search, page = 1, limit = 10 } = req.query;
 
         // Validate status if provided
         if (status && !['purchased', 'not_purchased'].includes(status as string)) {
@@ -158,11 +158,6 @@ export const getDowries = async (req: AuthRequest, res: Response) => {
 
         if (Category) {
             whereConditions.categoryId = Category;
-        }
-
-        if (isRead !== undefined && isRead !== null && isRead !== '') {
-            const readValue = typeof isRead === 'string' ? isRead : String(isRead);
-            whereConditions.isRead = readValue === 'true';
         }
 
         // Search query
@@ -318,7 +313,6 @@ export const updateDowry = async (req: AuthRequest, res: Response) => {
         if (req.body.dowryPrice !== undefined) dowry.dowryPrice = req.body.dowryPrice ? parseFloat(req.body.dowryPrice.toString()) : null;
         if (req.body.dowryLocation !== undefined) dowry.dowryLocation = req.body.dowryLocation;
         if (req.body.status !== undefined) dowry.status = req.body.status as DowryStatus;
-        if (req.body.isRead !== undefined) dowry.isRead = req.body.isRead;
         if (req.body.url !== undefined) dowry.url = req.body.url;
 
         const updatedDowry = await dowryRepository.save(dowry);

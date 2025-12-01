@@ -3,7 +3,7 @@ import { User } from '../entities/user.entity';
 import { Category } from '../entities/category.entity';
 import { Dowry } from '../entities/dowry.entity';
 import { Book } from '../entities/book.entity';
-import { ensureBucketExists } from '../config/minio.config';
+import { ensureBucketExists, makeBucketPublic } from '../config/minio.config';
 
 let AppDataSource: DataSource;
 
@@ -27,9 +27,10 @@ const connectDB = async (): Promise<void> => {
     await AppDataSource.initialize();
     console.log('✅ PostgreSQL connection established');
     
-    // MinIO bucket'ı kontrol et
+    // MinIO bucket'ı kontrol et ve public yap
     await ensureBucketExists();
-    console.log('✅ MinIO bucket ready');
+    await makeBucketPublic();
+    console.log('✅ MinIO bucket ready and public');
     
   } catch (error) {
     console.error('❌ Database connection error:', error);
