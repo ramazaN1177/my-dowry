@@ -1,5 +1,5 @@
 import express from 'express';
-import { login, signup, verifyEmail, logout,resetPassword,checkAuth,forgotPassword,refreshToken,changePassword, clearAllTokens, testEmail } from '../controller/auth.controller';
+import { login, signup, verifyEmail, logout,resetPassword,checkAuth,forgotPassword,refreshToken,changePassword, clearAllTokens, testEmail, deleteUser } from '../controller/auth.controller';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
@@ -441,5 +441,40 @@ router.post('/test-email', testEmail);
 
 // Manual token clear (development only)
 router.post('/clear-tokens', clearAllTokens);
+
+/**
+ * @swagger
+ * /api/auth/delete-account:
+ *   delete:
+ *     summary: Delete user account
+ *     description: Delete user account and all associated data (categories, dowries, books, images)
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User account deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "User and all associated data deleted successfully"
+ *                 deletedImagesCount:
+ *                   type: number
+ *                   example: 15
+ *       401:
+ *         description: Not authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/delete-account', verifyToken, deleteUser);
 
 export default router;

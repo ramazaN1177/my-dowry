@@ -1,16 +1,104 @@
 # MyDowry Backend API
 
-Swagger-free JSON Schema API with custom validation middleware.
+Modern backend API built with Express.js, TypeScript, PostgreSQL, and MinIO.
 
-## Features
+## 🚀 Features
 
-- ✅ **JSON Schema Validation** - Custom validation without Swagger dependencies
-- ✅ **Mongoose to JSON Schema** - Automatic schema generation from Mongoose models
-- ✅ **Request/Response Validation** - Built-in validation middleware
-- ✅ **API Documentation** - Custom documentation endpoints
-- ✅ **Authentication System** - Complete auth flow with email verification
+- ✅ **PostgreSQL Database** - Relational database with TypeORM
+- ✅ **MinIO Object Storage** - S3-compatible file storage for images
+- ✅ **TypeScript** - Full type safety
+- ✅ **JWT Authentication** - Secure token-based auth
+- ✅ **Email Verification** - Complete email verification flow
+- ✅ **Swagger Documentation** - Auto-generated API docs
+- ✅ **Image Upload** - Direct upload to MinIO
+- ✅ **Relational Data** - Full foreign key relationships
 
-## API Endpoints
+## 📋 Prerequisites
+
+- Node.js 18+
+- PostgreSQL 12+
+- MinIO Server
+
+## 🔧 Installation
+
+```bash
+npm install
+```
+
+## ⚙️ Environment Variables
+
+Create `.env` file in the `backend` directory:
+
+```env
+# Server
+PORT=5000
+NODE_ENV=development
+
+# JWT
+JWT_SECRET=your_jwt_secret
+
+# PostgreSQL Database
+DB_HOST=your_postgres_host
+DB_PORT=5432
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_NAME=your_db_name
+DB_SSL=false
+
+# MinIO Object Storage
+MINIO_ENDPOINT=http://your_minio_host:9000
+MINIO_ACCESS_KEY=your_access_key
+MINIO_SECRET_KEY=your_secret_key
+MINIO_BUCKET_NAME=mydowry-images
+
+# Email Configuration
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_app_password
+EMAIL_FROM=your_email@gmail.com
+
+# MongoDB (only for migration - can be removed after migration)
+MONGO_URI=your_mongodb_uri
+```
+
+## 🗄️ Database Setup
+
+### 1. Create PostgreSQL Database
+
+```sql
+CREATE DATABASE "your_db_name";
+```
+
+### 2. Run Migration (MongoDB → PostgreSQL)
+
+If you have existing MongoDB data:
+
+```bash
+npm run migrate
+```
+
+This will:
+- Migrate all users from MongoDB to PostgreSQL
+- Migrate categories, dowries, and books
+- Upload all images from MongoDB to MinIO
+- Preserve all relationships
+
+## 🏃 Running the Server
+
+### Development
+```bash
+npm run dev
+```
+
+### Production
+```bash
+npm run build
+npm start
+```
+
+## 📚 API Endpoints
 
 ### Authentication
 - `POST /api/auth/signup` - Register new user
@@ -18,97 +106,114 @@ Swagger-free JSON Schema API with custom validation middleware.
 - `POST /api/auth/verify-email` - Verify email with code
 - `POST /api/auth/logout` - User logout
 - `POST /api/auth/forgot-password` - Request password reset
-- `POST /api/auth/reset-password/:token` - Reset password
+- `POST /api/auth/reset-password` - Reset password
 - `GET /api/auth/check-auth` - Check authentication status
+- `POST /api/auth/refresh-token` - Refresh access token
 
-### Schema Documentation
-- `GET /api/schemas` - Get all available schemas
-- `GET /api/schemas/:modelName` - Get specific model schema
-- `GET /api/schemas/requests/:requestType` - Get request schema
-- `GET /api/api-docs` - Complete API documentation
+### Categories
+- `POST /api/category` - Create category
+- `GET /api/category` - Get user's categories
+- `DELETE /api/category/:id` - Delete category
 
-## JSON Schema Usage
+### Dowries
+- `POST /api/dowry` - Create dowry
+- `GET /api/dowry` - Get user's dowries (with pagination, search, filters)
+- `GET /api/dowry/:id` - Get dowry by ID
+- `PUT /api/dowry/:id` - Update dowry
+- `PATCH /api/dowry/:id/status` - Update dowry status
+- `PATCH /api/dowry/:id/image` - Update dowry image
+- `DELETE /api/dowry/:id/image` - Delete dowry image
+- `DELETE /api/dowry/:id` - Delete dowry
 
-### Get User Model Schema
-```bash
-GET /api/schemas/user
-```
+### Books
+- `POST /api/book` - Create book(s) from text
+- `GET /api/book` - Get user's books (with pagination, search, filters)
+- `PUT /api/book/:id` - Update book
+- `PATCH /api/book/:id/status` - Update book status
+- `DELETE /api/book/:id` - Delete book
 
-### Get Signup Request Schema
-```bash
-GET /api/schemas/requests/signupRequest
-```
+### Images
+- `POST /api/image/upload` - Upload image to MinIO
+- `GET /api/image/:id` - Get image by ID
+- `GET /api/image/user-images` - Get user's images
+- `DELETE /api/image/:id` - Delete image
 
-### Get All Schemas
-```bash
-GET /api/schemas
-```
+### Documentation
+- `GET /api-docs` - Swagger UI
+- `GET /api-docs.json` - OpenAPI JSON schema
 
-## Validation
-
-All endpoints use JSON schema validation. Invalid requests return:
-
-```json
-{
-  "success": false,
-  "message": "Validation failed",
-  "errors": [
-    "email must be a valid email address",
-    "password must be at least 6 characters"
-  ]
-}
-```
-
-## Installation
-
-```bash
-npm install
-npm run dev
-```
-
-## Environment Variables
-
-Create `.env` file:
-```env
-PORT=5000
-MONGODB_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
-```
-
-## Project Structure
+## 🗂️ Project Structure
 
 ```
 src/
-├── config/          # Configuration files
+├── config/          # Configuration (MinIO)
 ├── controller/      # Route controllers
-├── db/             # Database connection
-├── middleware/     # Custom middleware (validation, auth)
-├── models/         # Mongoose models
+├── db/             # Database connection (PostgreSQL)
+├── entities/       # TypeORM entities
+├── middleware/     # Custom middleware (auth, upload)
+├── models/         # MongoDB models (legacy - for migration only)
 ├── routes/         # API routes
-├── utils/          # Utilities (schema generation)
+├── scripts/        # Migration scripts
+├── services/       # Business logic (MinIO service)
+├── utils/          # Utilities
 └── server.ts       # Main server file
 ```
 
-## Schema Generation
+## 🖼️ Image Storage
 
-The API automatically generates JSON schemas from:
-- Mongoose models (`mongooseToJSONSchema`)
-- Custom request/response schemas
-- Validation rules
+Images are stored in **MinIO** (S3-compatible object storage):
 
-## Benefits of Swagger-Free Approach
+- **Upload**: Images uploaded directly to MinIO
+- **Storage**: Files stored in `users/{userId}/images/{filename}` structure
+- **Access**: Public URLs for direct access (bucket must be public)
+- **Database**: Only metadata (path, size, type) stored in PostgreSQL
 
-1. **Lighter Dependencies** - No heavy Swagger packages
-2. **Custom Validation** - Full control over validation logic
-3. **Better Performance** - Faster startup and runtime
-4. **Flexible Documentation** - Custom API docs format
-5. **Type Safety** - TypeScript integration
-6. **Easy Maintenance** - Simpler codebase
+### Image URL Format
 
-## Example Usage
+```
+http://your_minio_host:9000/mydowry-images/users/{userId}/images/{filename}
+```
 
-### Signup Request
-```json
+### Making Bucket Public
+
+1. Open MinIO Console: `http://your_minio_host:9000`
+2. Go to `mydowry-images` bucket
+3. Access Policy → Public
+4. Save
+
+## 🔗 Database Relationships
+
+```
+User (1) ──→ (N) Category
+User (1) ──→ (N) Dowry
+User (1) ──→ (N) Image
+User (1) ──→ (N) Book
+
+Category (1) ──→ (N) Dowry
+Category (1) ──→ (N) Book
+
+Dowry (N) ──→ (1) Category
+Dowry (N) ──→ (1) User
+Dowry (1) ──→ (1) Image (dowryImage)
+Dowry (1) ──→ (N) Image (images)
+
+Image (N) ──→ (1) User
+Image (N) ──→ (1) Dowry (optional)
+```
+
+## 🔐 Authentication
+
+All protected endpoints require JWT token in Authorization header:
+
+```
+Authorization: Bearer <token>
+```
+
+## 📝 Example Requests
+
+### Signup
+```bash
+POST /api/auth/signup
 {
   "name": "John Doe",
   "email": "john@example.com",
@@ -116,17 +221,115 @@ The API automatically generates JSON schemas from:
 }
 ```
 
-### Login Request
-```json
+### Login
+```bash
+POST /api/auth/login
 {
   "email": "john@example.com",
   "password": "password123"
 }
 ```
 
-### Verify Email Request
-```json
+### Upload Image
+```bash
+POST /api/image/upload
+Content-Type: multipart/form-data
+Authorization: Bearer <token>
+
+Form Data:
+- image: <file>
+```
+
+### Create Dowry
+```bash
+POST /api/dowry
+Authorization: Bearer <token>
 {
-  "code": "123456"
+  "name": "Wedding Dress",
+  "description": "Beautiful white dress",
+  "Category": "category-uuid",
+  "dowryPrice": 5000,
+  "status": "not_purchased"
 }
 ```
+
+## 🛠️ Development
+
+### Scripts
+
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Build TypeScript to JavaScript
+- `npm start` - Start production server
+- `npm run migrate` - Run MongoDB to PostgreSQL migration
+
+### TypeScript Configuration
+
+- `experimentalDecorators: true` - For TypeORM decorators
+- `emitDecoratorMetadata: true` - For TypeORM metadata
+- `strictPropertyInitialization: false` - For TypeORM entities
+
+## 🐳 Docker
+
+Docker configuration available:
+- `Dockerfile` - Production build
+- `docker-compose.yml` - Local development
+
+## 📦 Dependencies
+
+### Core
+- `express` - Web framework
+- `typeorm` - PostgreSQL ORM
+- `pg` - PostgreSQL driver
+- `minio` - MinIO client
+- `jsonwebtoken` - JWT tokens
+- `bcryptjs` - Password hashing
+
+### Development
+- `typescript` - TypeScript compiler
+- `ts-node` - TypeScript execution
+- `nodemon` - Hot reload
+
+## 🔄 Migration from MongoDB
+
+If you're migrating from MongoDB:
+
+1. Set up PostgreSQL database
+2. Configure MinIO
+3. Run `npm run migrate`
+4. Verify data in PostgreSQL
+5. Start using PostgreSQL endpoints
+
+Migration script automatically:
+- Migrates all users
+- Migrates categories, dowries, books
+- Uploads images to MinIO
+- Preserves all relationships
+
+## ⚠️ Important Notes
+
+1. **MinIO Bucket**: Must be public for direct image access
+2. **Database**: PostgreSQL uses UUID for IDs (not ObjectId)
+3. **Images**: Stored in MinIO, not in database
+4. **Relationships**: All foreign keys are properly set up
+5. **Migration**: One-time process, can remove MongoDB after migration
+
+## 🐛 Troubleshooting
+
+### Database Connection Error
+- Check PostgreSQL is running
+- Verify credentials in `.env`
+- Ensure database exists
+
+### MinIO Connection Error
+- Check MinIO is running
+- Verify endpoint and credentials
+- Check firewall/network settings
+
+### Image Upload Fails
+- Check MinIO bucket exists
+- Verify bucket is accessible
+- Check file size limits (10MB)
+
+## 📄 License
+
+ISC

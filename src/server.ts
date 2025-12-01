@@ -5,7 +5,6 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import connectDB from './db/connectDB';

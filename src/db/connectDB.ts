@@ -1,32 +1,42 @@
-import mongoose from 'mongoose';
+import { DataSource } from 'typeorm';
+import { User } from '../entities/user.entity';
+import { Category } from '../entities/category.entity';
+import { Dowry } from '../entities/dowry.entity';
+import { Book } from '../entities/book.entity';
+import { Image } from '../entities/image.entity';
+import { ensureBucketExists } from '../config/minio.config';
+
+let AppDataSource: DataSource;
 
 const connectDB = async (): Promise<void> => {
   try {
-    const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
-    
-    if (!mongoURI) {
-      throw new Error('MONGO_URI or MONGODB_URI environment variable is not defined');
-    }
+    AppDataSource = new DataSource({
+      type: 'postgres',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      username: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      entities: [User, Category, Dowry, Book, Image],
+      synchronize: process.env.NODE_ENV !== 'production', // Development'ta auto-sync, production'da false
+      logging: process.env.NODE_ENV === 'development',
+      ssl: process.env.DB_SSL === 'true' ? {
+        rejectUnauthorized: false
+      } : false,
+    });
 
-    // Set connection options for better reliability
-    const options = {
-      maxPoolSize: 10, // Maintain up to 10 socket connections
-      serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-      // bufferMaxEntries is deprecated, using bufferCommands instead
-      bufferCommands: false, // Disable mongoose buffering
-    };
-
-    await mongoose.connect(mongoURI, options);
-    console.log('MongoDB connection established');
+    await AppDataSource.initialize();
+    console.log('✅ PostgreSQL connection established');
     
-    // Log connection state
-    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    // MinIO bucket'ı kontrol et
+    await ensureBucketExists();
+    console.log('✅ MinIO bucket ready');
     
   } catch (error) {
-    console.error('Database connection error:', error);
-    throw error; // Re-throw the error so the server can handle it
+    console.error('❌ Database connection error:', error);
+    throw error;
   }
 };
 
+export { AppDataSource };
 export default connectDB;

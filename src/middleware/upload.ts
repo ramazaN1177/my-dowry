@@ -1,5 +1,4 @@
 import multer from 'multer';
-import crypto from 'crypto';
 
 // File filter
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
@@ -11,30 +10,27 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
     }
 };
 
-// Memory storage to convert files to base64
+// Memory storage - MinIO'ya yüklemek için buffer tutuyoruz
 const memoryStorage = multer.memoryStorage();
 
-// Single file upload with base64 conversion
+// Single file upload - buffer olarak tut (MinIO'ya yüklenecek)
 export const uploadSingle = (req: any, res: any, next: any) => {
     try {
-        console.log('Upload request received - Converting to base64');
-        
-        // Use memory storage
         const multerInstance = multer({
             storage: memoryStorage,
             fileFilter: fileFilter,
             limits: {
-                fileSize: 7 * 1024 * 1024, // 7MB limit
+                fileSize: 10 * 1024 * 1024, // 10MB limit
             }
         });
-        
+
         multerInstance.single('image')(req, res, (err) => {
             if (err instanceof multer.MulterError) {
                 console.error('Multer error:', err);
                 if (err.code === 'LIMIT_FILE_SIZE') {
                     return res.status(400).json({
                         success: false,
-                        message: 'File too large. Maximum size is 7MB.'
+                        message: 'File too large. Maximum size is 10MB.'
                     });
                 }
                 return res.status(400).json({
@@ -47,19 +43,6 @@ export const uploadSingle = (req: any, res: any, next: any) => {
                     success: false,
                     message: 'File upload failed: ' + err.message
                 });
-            }
-            
-            // Convert file to base64
-            if (req.file) {
-                const base64Data = req.file.buffer.toString('base64');
-                const filename = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}.${req.file.mimetype.split('/')[1]}`;
-                
-                // Add base64 data and filename to file object
-                (req.file as any).base64Data = base64Data;
-                (req.file as any).filename = filename;
-                (req.file as any).id = filename;
-                
-                console.log('File converted to base64 successfully:', filename);
             }
             next();
         });
@@ -72,14 +55,14 @@ export const uploadSingle = (req: any, res: any, next: any) => {
     }
 };
 
-// Multiple files upload with base64 conversion
+// Multiple files upload - buffer olarak tut
 export const uploadMultiple = (req: any, res: any, next: any) => {
     try {
         const multerInstance = multer({
             storage: memoryStorage,
             fileFilter: fileFilter,
             limits: {
-                fileSize: 7 * 1024 * 1024, // 7MB limit
+                fileSize: 10 * 1024 * 1024, // 10MB limit
             }
         });
 
@@ -89,7 +72,7 @@ export const uploadMultiple = (req: any, res: any, next: any) => {
                 if (err.code === 'LIMIT_FILE_SIZE') {
                     return res.status(400).json({
                         success: false,
-                        message: 'One or more files too large. Maximum size is 7MB per file.'
+                        message: 'One or more files too large. Maximum size is 10MB per file.'
                     });
                 }
                 return res.status(400).json({
@@ -102,19 +85,6 @@ export const uploadMultiple = (req: any, res: any, next: any) => {
                     success: false,
                     message: 'File upload failed: ' + err.message
                 });
-            }
-            
-            // Convert files to base64
-            if (req.files) {
-                req.files.forEach((file: any) => {
-                    const base64Data = file.buffer.toString('base64');
-                    const filename = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}.${file.mimetype.split('/')[1]}`;
-                    
-                    file.base64Data = base64Data;
-                    file.filename = filename;
-                    file.id = filename;
-                });
-                console.log('Multiple files converted to base64 successfully');
             }
             next();
         });
@@ -129,5 +99,5 @@ export const uploadMultiple = (req: any, res: any, next: any) => {
 
 // Export a function to check if storage is ready
 export const isStorageReady = () => {
-    return true; // Simple storage is always ready
+    return true; // MinIO storage is ready
 };

@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
-import { Image } from '../models/image.model';
+import { AppDataSource } from '../db/connectDB';
+import { Image } from '../entities/image.entity';
+import { MinioService } from '../services/minio.service';
+import crypto from 'crypto';
 
 interface AuthRequest extends Request {
     userId?: string;
@@ -34,68 +37,47 @@ export const uploadImage = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        // Check if base64 data exists
-        const base64Data = (req.file as any).base64Data;
-        const filename = (req.file as any).filename;
-        
-        if (!base64Data || !filename) {
-            console.error('Base64 data or filename not found in uploaded file');
-            console.error('File object:', req.file);
-            res.status(500).json({
-                success: false,
-                message: 'File upload failed - Base64 data not found. Please try again.'
-            });
-            return;
-        }
+        const imageRepository = AppDataSource.getRepository(Image);
+        const filename = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}.${req.file.mimetype.split('/')[1]}`;
 
-        // Create image record
-        const image = new Image({
+        // Upload to MinIO
+        const minioPath = await MinioService.uploadFile(
+            req.file.buffer,
+            filename,
+            req.file.mimetype,
+            req.userId
+        );
+
+        // Save to PostgreSQL
+        const image = imageRepository.create({
             filename: filename,
             originalName: req.file.originalname,
             contentType: req.file.mimetype,
             size: req.file.size,
-            data: base64Data, // Store base64 data directly
+            minioPath: minioPath,
             userId: req.userId
         });
 
-        await image.save();
+        const savedImage = await imageRepository.save(image);
+
+        // Get public URL
+        const imageUrl = MinioService.getPublicUrl(minioPath);
 
         res.status(201).json({
             success: true,
             message: 'Image uploaded successfully',
             image: {
-                id: image._id,
-                filename: image.filename,
-                originalName: image.originalName,
-                contentType: image.contentType,
-                size: image.size,
-                data: image.data, // Include base64 data in response
-                createdAt: image.createdAt
+                id: savedImage.id,
+                filename: savedImage.filename,
+                originalName: savedImage.originalName,
+                contentType: savedImage.contentType,
+                size: savedImage.size,
+                url: imageUrl,
+                createdAt: savedImage.createdAt
             }
         });
-
     } catch (error) {
         console.error('Upload Image Error:', error);
-        
-        // Check if it's a MongoDB validation error
-        if (error instanceof Error && error.name === 'ValidationError') {
-            res.status(400).json({
-                success: false,
-                message: 'Invalid image data',
-                error: process.env.NODE_ENV === 'development' ? error.message : undefined
-            });
-            return;
-        }
-
-        // Check if it's a MongoDB duplicate key error
-        if (error instanceof Error && (error as any).code === 11000) {
-            res.status(409).json({
-                success: false,
-                message: 'Image with this filename already exists'
-            });
-            return;
-        }
-
         res.status(500).json({
             success: false,
             message: 'Internal server error',
@@ -108,9 +90,12 @@ export const uploadImage = async (req: AuthRequest, res: Response): Promise<void
 export const getImage = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
+        const imageRepository = AppDataSource.getRepository(Image);
 
-        // Get image metadata
-        const image = await Image.findById(id);
+        const image = await imageRepository.findOne({
+            where: { id: id }
+        });
+
         if (!image) {
             res.status(404).json({
                 success: false,
@@ -119,8 +104,7 @@ export const getImage = async (req: AuthRequest, res: Response): Promise<void> =
             return;
         }
 
-        // Check if user has permission to access this image
-        if (image.userId.toString() !== req.userId) {
+        if (image.userId !== req.userId) {
             res.status(403).json({
                 success: false,
                 message: 'Access denied'
@@ -128,28 +112,17 @@ export const getImage = async (req: AuthRequest, res: Response): Promise<void> =
             return;
         }
 
-        // Serve base64 image data
-        const base64Data = image.data;
-        if (base64Data) {
-            // Convert base64 to buffer
-            const imageBuffer = Buffer.from(base64Data, 'base64');
-            
-            res.set({
-                'Content-Type': image.contentType,
-                'Content-Disposition': `inline; filename="${image.originalName}"`,
-                'Content-Length': imageBuffer.length,
-                'Cache-Control': 'public, max-age=31536000' // Cache for 1 year
-            });
-            
-            res.send(imageBuffer);
-            return;
-        } else {
-            res.status(404).json({
-                success: false,
-                message: 'Image data not found'
-            });
-        }
+        // Download from MinIO
+        const imageBuffer = await MinioService.downloadFile(image.minioPath);
 
+        res.set({
+            'Content-Type': image.contentType,
+            'Content-Disposition': `inline; filename="${image.originalName}"`,
+            'Content-Length': imageBuffer.length.toString(),
+            'Cache-Control': 'public, max-age=31536000'
+        });
+
+        res.send(imageBuffer);
     } catch (error) {
         console.error('Get Image Error:', error);
         res.status(500).json({
@@ -164,9 +137,12 @@ export const getImage = async (req: AuthRequest, res: Response): Promise<void> =
 export const deleteImage = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
+        const imageRepository = AppDataSource.getRepository(Image);
 
-        // Get image metadata
-        const image = await Image.findById(id);
+        const image = await imageRepository.findOne({
+            where: { id: id }
+        });
+
         if (!image) {
             res.status(404).json({
                 success: false,
@@ -175,8 +151,7 @@ export const deleteImage = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        // Check if user has permission to delete this image
-        if (image.userId.toString() !== req.userId) {
+        if (image.userId !== req.userId) {
             res.status(403).json({
                 success: false,
                 message: 'Access denied'
@@ -184,14 +159,16 @@ export const deleteImage = async (req: AuthRequest, res: Response): Promise<void
             return;
         }
 
-        // Delete image record (base64 data is stored in database)
-        await Image.findByIdAndDelete(id);
+        // Delete from MinIO
+        await MinioService.deleteFile(image.minioPath);
+
+        // Delete from PostgreSQL
+        await imageRepository.remove(image);
 
         res.status(200).json({
             success: true,
             message: 'Image deleted successfully'
         });
-
     } catch (error) {
         console.error('Delete Image Error:', error);
         res.status(500).json({
@@ -213,16 +190,29 @@ export const getUserImages = async (req: AuthRequest, res: Response): Promise<vo
             return;
         }
 
-        const images = await Image.find({ userId: req.userId })
-            .select('-data') // Exclude base64 data for list view (too large)
-            .sort({ createdAt: -1 });
+        const imageRepository = AppDataSource.getRepository(Image);
+
+        const images = await imageRepository.find({
+            where: { userId: req.userId },
+            order: { createdAt: 'DESC' }
+        });
+
+        // Add public URLs
+        const imagesWithUrls = images.map(image => ({
+            id: image.id,
+            filename: image.filename,
+            originalName: image.originalName,
+            contentType: image.contentType,
+            size: image.size,
+            url: MinioService.getPublicUrl(image.minioPath),
+            createdAt: image.createdAt
+        }));
 
         res.status(200).json({
             success: true,
             message: 'Images fetched successfully',
-            images
+            images: imagesWithUrls
         });
-
     } catch (error) {
         console.error('Get User Images Error:', error);
         res.status(500).json({
@@ -246,9 +236,11 @@ export const processImageOCR = async (req: AuthRequest, res: Response): Promise<
             return;
         }
 
-        // Get image from database
-        const image = await Image.findOne({ _id: id, userId: req.userId });
-        
+        const imageRepository = AppDataSource.getRepository(Image);
+        const image = await imageRepository.findOne({
+            where: { id: id, userId: req.userId }
+        });
+
         if (!image) {
             res.status(404).json({
                 success: false,
@@ -259,24 +251,12 @@ export const processImageOCR = async (req: AuthRequest, res: Response): Promise<
 
         // OCR service is temporarily disabled
         console.log('OCR service is temporarily disabled for image:', id);
-        const bookInfo = null;
 
-        if (!bookInfo) {
-            res.status(200).json({
-                success: true,
-                message: 'OCR processing completed but no book information found',
-                bookInfo: null
-            });
-            return;
-        }
-
-        // Return book information (OCR disabled)
         res.status(200).json({
             success: true,
             message: 'OCR service is temporarily disabled',
             bookInfo: null
         });
-
     } catch (error) {
         console.error('Process Image OCR Error:', error);
         res.status(500).json({
