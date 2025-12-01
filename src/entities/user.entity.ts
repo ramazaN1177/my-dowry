@@ -1,7 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Dowry } from './dowry.entity';
 import { Category } from './category.entity';
-import { Image } from './image.entity';
 import { Book } from './book.entity';
 
 @Entity('users')
@@ -53,9 +52,6 @@ export class User {
 
   @OneToMany(() => Category, category => category.user)
   categories: Category[];
-
-  @OneToMany(() => Image, image => image.user)
-  images: Image[];
 
   @OneToMany(() => Book, book => book.user)
   books: Book[];

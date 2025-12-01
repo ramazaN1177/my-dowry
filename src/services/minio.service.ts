@@ -1,4 +1,4 @@
-import { minioClient, BUCKET_NAME } from '../config/minio.config';
+import { getMinioClientInstance, getBucketName } from '../config/minio.config';
 
 // Public URL için endpoint bilgisi
 const getMinioPublicUrl = (): string => {
@@ -20,9 +20,11 @@ export class MinioService {
     userId: string
   ): Promise<string> {
     const minioPath = `users/${userId}/images/${fileName}`;
+    const client = getMinioClientInstance();
+    const bucketName = getBucketName();
     
-    await minioClient.putObject(
-      BUCKET_NAME,
+    await client.putObject(
+      bucketName,
       minioPath,
       buffer,
       buffer.length,
@@ -38,7 +40,9 @@ export class MinioService {
    * Dosyayı MinIO'dan indir
    */
   static async downloadFile(minioPath: string): Promise<Buffer> {
-    const stream = await minioClient.getObject(BUCKET_NAME, minioPath);
+    const client = getMinioClientInstance();
+    const bucketName = getBucketName();
+    const stream = await client.getObject(bucketName, minioPath);
     const chunks: Buffer[] = [];
 
     return new Promise((resolve, reject) => {
@@ -52,7 +56,9 @@ export class MinioService {
    * Dosyayı MinIO'dan sil
    */
   static async deleteFile(minioPath: string): Promise<void> {
-    await minioClient.removeObject(BUCKET_NAME, minioPath);
+    const client = getMinioClientInstance();
+    const bucketName = getBucketName();
+    await client.removeObject(bucketName, minioPath);
   }
 
   /**
@@ -60,7 +66,9 @@ export class MinioService {
    * Geçici erişim için kullanılır
    */
   static async getPresignedUrl(minioPath: string, expiryInSeconds: number = 7 * 24 * 60 * 60): Promise<string> {
-    return await minioClient.presignedGetObject(BUCKET_NAME, minioPath, expiryInSeconds);
+    const client = getMinioClientInstance();
+    const bucketName = getBucketName();
+    return await client.presignedGetObject(bucketName, minioPath, expiryInSeconds);
   }
 
   /**
@@ -69,7 +77,28 @@ export class MinioService {
    */
   static getPublicUrl(minioPath: string): string {
     const baseUrl = getMinioPublicUrl();
-    return `${baseUrl}/${BUCKET_NAME}/${minioPath}`;
+    const bucketName = getBucketName();
+    return `${baseUrl}/${bucketName}/${minioPath}`;
+  }
+
+  /**
+   * Public URL'den minioPath çıkarır
+   * Format: http://host:port/bucket-name/minioPath
+   */
+  static extractMinioPathFromUrl(imageUrl: string): string | null {
+    try {
+      const url = new URL(imageUrl);
+      const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+      const bucketName = getBucketName();
+      const bucketIndex = pathParts.findIndex(part => part === bucketName);
+      if (bucketIndex >= 0 && bucketIndex < pathParts.length - 1) {
+        return pathParts.slice(bucketIndex + 1).join('/');
+      }
+      return null;
+    } catch (error) {
+      console.error('Error extracting minioPath from URL:', error);
+      return null;
+    }
   }
 
   /**
@@ -88,7 +117,9 @@ export class MinioService {
    */
   static async fileExists(minioPath: string): Promise<boolean> {
     try {
-      await minioClient.statObject(BUCKET_NAME, minioPath);
+      const client = getMinioClientInstance();
+      const bucketName = getBucketName();
+      await client.statObject(bucketName, minioPath);
       return true;
     } catch (error: any) {
       if (error.code === 'NotFound') {

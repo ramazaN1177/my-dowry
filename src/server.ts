@@ -10,7 +10,6 @@ import path from 'path';
 import connectDB from './db/connectDB';
 import authRoutes from './routes/auth.route';
 import dowryRoutes from './routes/dowry.routes';
-import imageRoutes from './routes/image.routes';
 import categoryRoutes from './routes/category.route';
 import bookRoutes from './routes/book.routes';
 
@@ -211,18 +210,9 @@ app.get('/api-docs.json', (req: Request, res: Response) => {
 });
 
 // Additional CORS middleware for file uploads
-app.use('/api/image/upload', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  next();
-});
-
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dowry', dowryRoutes);
-app.use('/api/image', imageRoutes);
 app.use('/api/category', categoryRoutes);
 app.use('/api/book', bookRoutes);
 

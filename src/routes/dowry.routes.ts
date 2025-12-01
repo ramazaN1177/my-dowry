@@ -1,6 +1,7 @@
 import express from 'express';
-import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, updateDowryStatus, updateDowryImage, deleteDowryImage } from '../controller/dowry.controller';
+import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, updateDowryStatus, deleteDowryImage } from '../controller/dowry.controller';
 import { verifyToken } from '../middleware/verifyToken';
+import { uploadDowryImage } from '../middleware/upload';
 
 const router = express.Router();
 
@@ -11,44 +12,63 @@ const router = express.Router();
  *     Dowry:
  *       type: object
  *       properties:
- *         _id:
+ *         id:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
+ *           format: uuid
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         name:
  *           type: string
  *           example: "Gold Necklace"
  *         description:
  *           type: string
  *           example: "Beautiful gold necklace with precious stones"
- *         Category:
+ *         categoryId:
+ *           type: string
+ *           format: uuid
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
+ *         category:
  *           type: object
  *           properties:
- *             _id:
+ *             id:
  *               type: string
- *               example: "507f1f77bcf86cd799439011"
+ *               format: uuid
  *             name:
  *               type: string
  *               example: "Jewelry"
- *             icon:
- *               type: string
- *               example: "jewelry-icon.png"
  *         dowryPrice:
  *           type: number
  *           example: 5000
- *         dowryImage:
+ *         dowryImageId:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
- *           description: "Image ID reference"
+ *           format: uuid
+ *           nullable: true
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
+ *         imageUrl:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *           example: "http://minio:9000/bucket/users/.../images/..."
+ *           description: "Public URL of the dowry image from MinIO"
  *         dowryLocation:
  *           type: string
+ *           nullable: true
  *           example: "Istanbul, Turkey"
+ *         url:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *           example: "https://www.example.com"
  *         status:
  *           type: string
  *           enum: [purchased, not_purchased]
  *           example: "not_purchased"
+ *         isRead:
+ *           type: boolean
+ *           example: false
  *         userId:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
+ *           format: uuid
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -64,14 +84,14 @@ const router = express.Router();
  * /api/dowry/create:
  *   post:
  *     summary: Create a new dowry
- *     description: Create a new dowry item
+ *     description: Create a new dowry item. You can upload an image file along with the dowry data in a single request using multipart/form-data.
  *     tags: [Dowry]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -86,22 +106,23 @@ const router = express.Router();
  *                 example: "Beautiful gold necklace with precious stones"
  *               Category:
  *                 type: string
- *                 example: "507f1f77bcf86cd799439011"
- *                 description: "Category ID reference"
+ *                 format: uuid
+ *                 example: "550e8400-e29b-41d4-a716-446655440000"
+ *                 description: "Category ID (UUID)"
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: "Image file (optional). Max size: 10MB. Formats: jpg, png, etc. If provided, image will be uploaded to MinIO and saved as imageUrl."
  *               dowryPrice:
  *                 type: number
  *                 example: 5000
- *               imageId:
- *                 type: string
- *                 example: "507f1f77bcf86cd799439011"
- *                 description: "Image ID from uploaded image"
  *               dowryLocation:
  *                 type: string
  *                 example: "Istanbul, Turkey"
  *               url:
  *                 type: string
  *                 format: uri
- *                 example: "https://www.google.com"
+ *                 example: "https://www.example.com"
  *                 description: "Valid URL format required (e.g., https://example.com)"
  *               status:
  *                 type: string
@@ -130,14 +151,14 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/create', verifyToken, createDowry);
+router.post('/create', verifyToken, uploadDowryImage, createDowry);
 
 /**
  * @swagger
  * /api/dowry/get:
  *   get:
  *     summary: Get all dowries with filters
- *     description: Get all dowries for the authenticated user with optional filtering and pagination
+ *     description: Get all dowries for the authenticated user with optional filtering and pagination. Each dowry includes its imageUrl (MinIO public URL) if an image exists.
  *     tags: [Dowry]
  *     security:
  *       - bearerAuth: []
@@ -150,9 +171,10 @@ router.post('/create', verifyToken, createDowry);
  *           enum: [purchased, not_purchased]
  *       - in: query
  *         name: Category
- *         description: Filter by category ID
+ *         description: Filter by category ID (UUID)
  *         schema:
  *           type: string
+ *           format: uuid
  *       - in: query
  *         name: search
  *         description: Search in name and description fields
@@ -177,7 +199,7 @@ router.post('/create', verifyToken, createDowry);
  *           default: 10
  *     responses:
  *       200:
- *         description: Dowries retrieved successfully
+ *         description: Dowries retrieved successfully with image URLs
  *         content:
  *           application/json:
  *             schema:
@@ -222,7 +244,7 @@ router.get('/get', verifyToken, getDowries);
  * /api/dowry/get/{id}:
  *   get:
  *     summary: Get dowry by ID
- *     description: Get a specific dowry by its ID
+ *     description: Get a specific dowry by its ID. Includes imageUrl (MinIO public URL) if an image exists.
  *     tags: [Dowry]
  *     security:
  *       - bearerAuth: []
@@ -230,12 +252,13 @@ router.get('/get', verifyToken, getDowries);
  *       - in: path
  *         name: id
  *         required: true
- *         description: Dowry ID
+ *         description: Dowry ID (UUID)
  *         schema:
  *           type: string
+ *           format: uuid
  *     responses:
  *       200:
- *         description: Dowry retrieved successfully
+ *         description: Dowry retrieved successfully with image URL
  *         content:
  *           application/json:
  *             schema:
@@ -244,6 +267,9 @@ router.get('/get', verifyToken, getDowries);
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Dowry fetched successfully"
  *                 dowry:
  *                   $ref: '#/components/schemas/Dowry'
  *       404:
@@ -260,7 +286,7 @@ router.get('/get/:id', verifyToken, getDowryById);
  * /api/dowry/update/{id}:
  *   put:
  *     summary: Update dowry
- *     description: Update a specific dowry
+ *     description: Update a specific dowry. You can upload a new image file along with the dowry data using multipart/form-data. If a new image is uploaded, the old image will be deleted.
  *     tags: [Dowry]
  *     security:
  *       - bearerAuth: []
@@ -268,13 +294,14 @@ router.get('/get/:id', verifyToken, getDowryById);
  *       - in: path
  *         name: id
  *         required: true
- *         description: Dowry ID
+ *         description: Dowry ID (UUID)
  *         schema:
  *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -284,29 +311,33 @@ router.get('/get/:id', verifyToken, getDowryById);
  *               description:
  *                 type: string
  *                 example: "Updated description"
- *               Category:
+ *               categoryId:
  *                 type: string
- *                 example: "507f1f77bcf86cd799439011"
- *                 description: "Category ID reference"
+ *                 format: uuid
+ *                 example: "550e8400-e29b-41d4-a716-446655440000"
+ *                 description: "Category ID (UUID)"
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: "New image file (optional). Max size: 10MB. If provided, old image will be deleted and new image will be uploaded to MinIO."
  *               dowryPrice:
  *                 type: number
  *                 example: 6000
- *               imageId:
- *                 type: string
- *                 example: "507f1f77bcf86cd799439011"
- *                 description: "Image ID from uploaded image"
  *               dowryLocation:
  *                 type: string
  *                 example: "Istanbul, Turkey"
  *               url:
  *                 type: string
  *                 format: uri
- *                 example: "https://www.google.com"
+ *                 example: "https://www.example.com"
  *                 description: "Valid URL format required (e.g., https://example.com)"
  *               status:
  *                 type: string
  *                 enum: [purchased, not_purchased]
  *                 example: "purchased"
+ *               isRead:
+ *                 type: boolean
+ *                 example: false
  *     responses:
  *       200:
  *         description: Dowry updated successfully
@@ -330,7 +361,7 @@ router.get('/get/:id', verifyToken, getDowryById);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/update/:id', verifyToken, updateDowry);
+router.put('/update/:id', verifyToken, uploadDowryImage, updateDowry);
 
 /**
  * @swagger
@@ -391,66 +422,6 @@ router.put('/update/:id', verifyToken, updateDowry);
  *               $ref: '#/components/schemas/Error'
  */
 router.patch('/status/:id', verifyToken, updateDowryStatus);
-
-/**
- * @swagger
- * /api/dowry/image/{id}:
- *   patch:
- *     summary: Update dowry image
- *     description: Update the image of a specific dowry. If a previous image exists, it will be deleted and replaced with the new one.
- *     tags: [Dowry]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         description: Dowry ID
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - imageId
- *             properties:
- *               imageId:
- *                 type: string
- *                 example: "507f1f77bcf86cd799439011"
- *                 description: "Image ID from uploaded image"
- *     responses:
- *       200:
- *         description: Dowry image updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Dowry image updated successfully"
- *                 dowry:
- *                   $ref: '#/components/schemas/Dowry'
- *       400:
- *         description: Bad request - Invalid or missing imageId
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: Dowry not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-router.patch('/image/:id', verifyToken, updateDowryImage);
 
 /**
  * @swagger

@@ -3,7 +3,6 @@ import { User } from '../entities/user.entity';
 import { Category } from '../entities/category.entity';
 import { Dowry } from '../entities/dowry.entity';
 import { Book } from '../entities/book.entity';
-import { Image } from '../entities/image.entity';
 import { MinioService } from '../services/minio.service';
 import bcrypt from "bcryptjs";
 import { generateTokenAndSetCookie, generateRefreshToken, generateAccessToken } from '../utils/generateTokenAndSetCookie';
@@ -524,7 +523,6 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
         const categoryRepository = AppDataSource.getRepository(Category);
         const dowryRepository = AppDataSource.getRepository(Dowry);
         const bookRepository = AppDataSource.getRepository(Book);
-        const imageRepository = AppDataSource.getRepository(Image);
 
         // Kullanıcıyı bul
         const user = await userRepository.findOne({ where: { id: req.userId } });
@@ -542,115 +540,38 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
             where: { userId: req.userId }
         });
 
-        // 2. Her kategori için çeyizleri ve kitapları bul ve resimleri sil
+        // 2. Kullanıcıya ait tüm çeyizleri bul ve resimleri MinIO'dan sil
         let deletedImagesCount = 0;
-        for (const category of categories) {
-            // Kategoriye ait çeyizleri bul
-            const categoryDowries = await dowryRepository.find({
-                where: { categoryId: category.id, userId: req.userId }
-            });
+        const allDowries = await dowryRepository.find({
+            where: { userId: req.userId }
+        });
 
-            // Çeyizlere ait resimleri sil
-            for (const dowry of categoryDowries) {
-                // Çeyiz ana resmini sil
-                if (dowry.dowryImageId) {
-                    const image = await imageRepository.findOne({
-                        where: { id: dowry.dowryImageId }
-                    });
-                    if (image) {
-                        try {
-                            await MinioService.deleteFile(image.minioPath);
-                            await imageRepository.remove(image);
-                            deletedImagesCount++;
-                        } catch (error) {
-                            console.error(`Error deleting image ${image.id}:`, error);
-                        }
-                    }
-                }
-
-                // Çeyize ait diğer resimleri sil
-                const dowryImages = await imageRepository.find({
-                    where: { dowryId: dowry.id }
-                });
-                for (const img of dowryImages) {
-                    try {
-                        await MinioService.deleteFile(img.minioPath);
-                        await imageRepository.remove(img);
+        // Çeyizlere ait resimleri MinIO'dan sil
+        for (const dowry of allDowries) {
+            if (dowry.imageUrl) {
+                try {
+                    const minioPath = MinioService.extractMinioPathFromUrl(dowry.imageUrl);
+                    if (minioPath) {
+                        await MinioService.deleteFile(minioPath);
                         deletedImagesCount++;
-                    } catch (error) {
-                        console.error(`Error deleting image ${img.id}:`, error);
                     }
+                } catch (error) {
+                    console.error(`Error deleting image for dowry ${dowry.id}:`, error);
                 }
             }
-
-            // Kategoriye ait çeyizleri sil
-            await dowryRepository.delete({ categoryId: category.id, userId: req.userId });
-
-            // Kategoriye ait kitapları sil
-            await bookRepository.delete({ categoryId: category.id, userId: req.userId });
         }
 
-        // 3. Kategorileri sil
+        // 3. Kullanıcıya ait tüm kategorileri, çeyizleri ve kitapları sil (cascade delete ile)
+        // Önce kategorileri sil (cascade ile çeyizler ve kitaplar silinecek)
         await categoryRepository.delete({ userId: req.userId });
 
-        // 4. Kullanıcıya ait doğrudan çeyizleri bul (kategori dışı - eğer varsa)
-        const directDowries = await dowryRepository.find({
-            where: { userId: req.userId }
-        });
-
-        // Doğrudan çeyizlere ait resimleri sil
-        for (const dowry of directDowries) {
-            if (dowry.dowryImageId) {
-                const image = await imageRepository.findOne({
-                    where: { id: dowry.dowryImageId }
-                });
-                if (image) {
-                    try {
-                        await MinioService.deleteFile(image.minioPath);
-                        await imageRepository.remove(image);
-                        deletedImagesCount++;
-                    } catch (error) {
-                        console.error(`Error deleting image ${image.id}:`, error);
-                    }
-                }
-            }
-
-            const dowryImages = await imageRepository.find({
-                where: { dowryId: dowry.id }
-            });
-            for (const img of dowryImages) {
-                try {
-                    await MinioService.deleteFile(img.minioPath);
-                    await imageRepository.remove(img);
-                    deletedImagesCount++;
-                } catch (error) {
-                    console.error(`Error deleting image ${img.id}:`, error);
-                }
-            }
-        }
-
-        // Doğrudan çeyizleri sil
+        // Kategori dışı çeyizleri sil
         await dowryRepository.delete({ userId: req.userId });
 
-        // 5. Kullanıcıya ait doğrudan kitapları sil (kategori dışı - eğer varsa)
+        // Kategori dışı kitapları sil
         await bookRepository.delete({ userId: req.userId });
 
-        // 6. Kullanıcıya ait tüm resimleri sil (MinIO'dan ve DB'den)
-        const userImages = await imageRepository.find({
-            where: { userId: req.userId }
-        });
-
-        for (const image of userImages) {
-            try {
-                await MinioService.deleteFile(image.minioPath);
-                await imageRepository.remove(image);
-                deletedImagesCount++;
-            } catch (error) {
-                console.error(`Error deleting image ${image.id}:`, error);
-            }
-        }
-
-        // 7. Kullanıcıyı sil
+        // 4. Kullanıcıyı sil
         await userRepository.remove(user);
 
         res.status(200).json({

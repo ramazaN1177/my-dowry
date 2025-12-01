@@ -3,9 +3,7 @@ import { AppDataSource } from '../db/connectDB';
 import { Category } from "../entities/category.entity";
 import { Dowry } from "../entities/dowry.entity";
 import { Book } from "../entities/book.entity";
-import { Image } from "../entities/image.entity";
 import { MinioService } from '../services/minio.service';
-import { In } from 'typeorm';
 
 interface AuthRequest extends Request {
     userId?: string;
@@ -95,7 +93,6 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
         const categoryRepository = AppDataSource.getRepository(Category);
         const dowryRepository = AppDataSource.getRepository(Dowry);
         const bookRepository = AppDataSource.getRepository(Book);
-        const imageRepository = AppDataSource.getRepository(Image);
 
         // Önce kategoriyi bul
         const category = await categoryRepository.findOne({ 
@@ -115,41 +112,21 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
             where: { 
                 categoryId: categoryId,
                 userId: userId 
-            },
-            relations: ['dowryImage']
+            }
         });
 
-        // Çeyizlere ait resimleri MinIO'dan sil ve PostgreSQL'den sil
+        // Çeyizlere ait resimleri MinIO'dan sil
         let deletedImagesCount = 0;
         for (const dowry of dowries) {
-            if (dowry.dowryImageId) {
-                // MinIO'dan sil
-                const image = await imageRepository.findOne({ where: { id: dowry.dowryImageId } });
-                if (image) {
-                    try {
-                        await MinioService.deleteFile(image.minioPath);
-                        await imageRepository.remove(image);
-                        deletedImagesCount++;
-                    } catch (error) {
-                        console.error(`Error deleting image ${image.id}:`, error);
-                    }
-                }
-            }
-        }
-
-        // Çeyizlere ait diğer resimleri de sil (dowryId'ye göre)
-        const dowryIds = dowries.map(d => d.id);
-        if (dowryIds.length > 0) {
-            const additionalImages = await imageRepository.find({ 
-                where: { dowryId: In(dowryIds) } 
-            });
-            for (const img of additionalImages) {
+            if (dowry.imageUrl) {
                 try {
-                    await MinioService.deleteFile(img.minioPath);
-                    await imageRepository.remove(img);
-                    deletedImagesCount++;
+                    const minioPath = MinioService.extractMinioPathFromUrl(dowry.imageUrl);
+                    if (minioPath) {
+                        await MinioService.deleteFile(minioPath);
+                        deletedImagesCount++;
+                    }
                 } catch (error) {
-                    console.error(`Error deleting image ${img.id}:`, error);
+                    console.error(`Error deleting image for dowry ${dowry.id}:`, error);
                 }
             }
         }

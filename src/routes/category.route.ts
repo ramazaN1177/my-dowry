@@ -11,18 +11,22 @@ const router = express.Router();
  *     Category:
  *       type: object
  *       properties:
- *         _id:
+ *         id:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
+ *           format: uuid
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         name:
  *           type: string
- *           example: "Gold Necklace"
+ *           example: "Jewelry"
  *         icon:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
+ *           format: uuid
+ *           nullable: true
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         userId:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
+ *           format: uuid
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -69,7 +73,9 @@ const router = express.Router();
  *                 example: "Gold Necklace"
  *               icon:
  *                 type: string
- *                 example: "507f1f77bcf86cd799439011"
+ *                 format: uuid
+ *                 nullable: true
+ *                 example: "550e8400-e29b-41d4-a716-446655440000"
  *     responses:
  *       201:
  *         description: Category added successfully

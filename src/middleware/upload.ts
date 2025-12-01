@@ -97,6 +97,49 @@ export const uploadMultiple = (req: any, res: any, next: any) => {
     }
 };
 
+// Dowry için: sadece tek resim kabul eder
+export const uploadDowryImage = (req: any, res: any, next: any) => {
+    try {
+        const multerInstance = multer({
+            storage: memoryStorage,
+            fileFilter: fileFilter,
+            limits: {
+                fileSize: 10 * 1024 * 1024, // 10MB limit
+            }
+        });
+
+        // Sadece tek dosya kabul et (field name: 'image')
+        multerInstance.single('image')(req, res, (err) => {
+            if (err instanceof multer.MulterError) {
+                console.error('Multer error:', err);
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'File too large. Maximum size is 10MB.'
+                    });
+                }
+                return res.status(400).json({
+                    success: false,
+                    message: 'File upload error: ' + err.message
+                });
+            } else if (err) {
+                console.error('Upload error:', err);
+                return res.status(500).json({
+                    success: false,
+                    message: 'File upload failed: ' + err.message
+                });
+            }
+            next();
+        });
+    } catch (error) {
+        console.error('Failed to initialize multer for dowry upload:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Upload system not ready. Please try again.'
+        });
+    }
+};
+
 // Export a function to check if storage is ready
 export const isStorageReady = () => {
     return true; // MinIO storage is ready

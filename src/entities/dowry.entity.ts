@@ -1,7 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from './user.entity';
 import { Category } from './category.entity';
-import { Image } from './image.entity';
 
 export enum DowryStatus {
   PURCHASED = 'purchased',
@@ -29,18 +28,14 @@ export class Dowry {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   dowryPrice: number | null;
 
-  @Column({ type: 'uuid', nullable: true })
-  dowryImageId: string | null;
-
-  @OneToOne(() => Image, { nullable: true })
-  @JoinColumn({ name: 'dowryImageId' })
-  dowryImage: Image | null;
-
   @Column({ type: 'varchar', nullable: true })
   dowryLocation: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   url: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  imageUrl: string | null;
 
   @Column({ 
     type: 'enum', 
@@ -58,9 +53,6 @@ export class Dowry {
   @ManyToOne(() => User, user => user.dowries)
   @JoinColumn({ name: 'userId' })
   user: User;
-
-  @OneToMany(() => Image, image => image.dowry)
-  images: Image[];
 
   @CreateDateColumn()
   createdAt: Date;

@@ -11,18 +11,20 @@ const router = express.Router();
  *     Book:
  *       type: object
  *       properties:
- *         _id:
+ *         id:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
+ *           format: uuid
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         name:
  *           type: string
  *           example: "The Great Gatsby"
  *         author:
  *           type: string
  *           example: "F. Scott Fitzgerald"
- *         Category:
+ *         categoryId:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
+ *           format: uuid
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         status:
  *           type: string
  *           enum: [purchased, not_purchased]
@@ -32,7 +34,8 @@ const router = express.Router();
  *           example: false
  *         userId:
  *           type: string
- *           example: "507f1f77bcf86cd799439011"
+ *           format: uuid
+ *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -79,7 +82,8 @@ const router = express.Router();
  *                 example: "F. Scott Fitzgerald - The Great Gatsby\nGeorge Orwell - 1984"
  *               categoryId:
  *                 type: string
- *                 example: "507f1f77bcf86cd799439011"
+ *                 format: uuid
+ *                 example: "550e8400-e29b-41d4-a716-446655440000"
  *     responses:
  *       201:
  *         description: Books added successfully
@@ -218,9 +222,10 @@ router.get('/get', verifyToken, getBooks);
  *       - in: path
  *         name: id
  *         required: true
- *         description: Book ID
+ *         description: Book ID (UUID)
  *         schema:
  *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
@@ -232,8 +237,9 @@ router.get('/get', verifyToken, getBooks);
  *                 type: string
  *               author:
  *                 type: string
- *               Category:
+ *               categoryId:
  *                 type: string
+ *                 format: uuid
  *               status:
  *                 type: string
  *                 enum: [purchased, not_purchased]
@@ -277,9 +283,10 @@ router.put('/update/:id', verifyToken, updateBook);
  *       - in: path
  *         name: id
  *         required: true
- *         description: Book ID
+ *         description: Book ID (UUID)
  *         schema:
  *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
@@ -337,9 +344,10 @@ router.patch('/update-status/:id', verifyToken, updateBookStatus);
  *       - in: path
  *         name: id
  *         required: true
- *         description: Book ID
+ *         description: Book ID (UUID)
  *         schema:
  *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: Book deleted successfully

@@ -116,14 +116,13 @@ npm start
 - `DELETE /api/category/:id` - Delete category
 
 ### Dowries
-- `POST /api/dowry` - Create dowry
-- `GET /api/dowry` - Get user's dowries (with pagination, search, filters)
-- `GET /api/dowry/:id` - Get dowry by ID
-- `PUT /api/dowry/:id` - Update dowry
-- `PATCH /api/dowry/:id/status` - Update dowry status
-- `PATCH /api/dowry/:id/image` - Update dowry image
-- `DELETE /api/dowry/:id/image` - Delete dowry image
-- `DELETE /api/dowry/:id` - Delete dowry
+- `POST /api/dowry/create` - Create dowry (with optional image upload)
+- `GET /api/dowry/get` - Get user's dowries (with pagination, search, filters)
+- `GET /api/dowry/get/:id` - Get dowry by ID
+- `PUT /api/dowry/update/:id` - Update dowry (with optional image upload)
+- `PATCH /api/dowry/status/:id` - Update dowry status
+- `DELETE /api/dowry/image/:id` - Delete dowry image
+- `DELETE /api/dowry/delete/:id` - Delete dowry
 
 ### Books
 - `POST /api/book` - Create book(s) from text
@@ -131,12 +130,6 @@ npm start
 - `PUT /api/book/:id` - Update book
 - `PATCH /api/book/:id/status` - Update book status
 - `DELETE /api/book/:id` - Delete book
-
-### Images
-- `POST /api/image/upload` - Upload image to MinIO
-- `GET /api/image/:id` - Get image by ID
-- `GET /api/image/user-images` - Get user's images
-- `DELETE /api/image/:id` - Delete image
 
 ### Documentation
 - `GET /api-docs` - Swagger UI
@@ -194,8 +187,7 @@ Category (1) ──→ (N) Book
 
 Dowry (N) ──→ (1) Category
 Dowry (N) ──→ (1) User
-Dowry (1) ──→ (1) Image (dowryImage)
-Dowry (1) ──→ (N) Image (images)
+Dowry (1) ──→ (1) Image (dowryImage - optional)
 
 Image (N) ──→ (1) User
 Image (N) ──→ (1) Dowry (optional)
@@ -230,27 +222,19 @@ POST /api/auth/login
 }
 ```
 
-### Upload Image
+### Create Dowry (with Image)
 ```bash
-POST /api/image/upload
+POST /api/dowry/create
 Content-Type: multipart/form-data
 Authorization: Bearer <token>
 
 Form Data:
-- image: <file>
-```
-
-### Create Dowry
-```bash
-POST /api/dowry
-Authorization: Bearer <token>
-{
-  "name": "Wedding Dress",
-  "description": "Beautiful white dress",
-  "Category": "category-uuid",
-  "dowryPrice": 5000,
-  "status": "not_purchased"
-}
+- name: "Wedding Dress"
+- description: "Beautiful white dress"
+- categoryId: "category-uuid"
+- dowryPrice: 5000
+- status: "not_purchased"
+- image: <file> (optional)
 ```
 
 ## 🛠️ Development
