@@ -12,7 +12,6 @@ services:
       - NODE_ENV=development
       - PORT=5000
       - SERVER_URL=${SERVER_URL:-https://api.mydowry.ramazancavus.com.tr}
-      - MONGO_URI=${MONGO_URI}
       - JWT_SECRET=${JWT_SECRET}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
