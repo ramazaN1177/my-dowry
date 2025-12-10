@@ -19,13 +19,6 @@ const parseMinioEndpoint = (endpoint: string): { host: string; port: number; use
 const getMinioClient = (): Minio.Client => {
   const endpoint = process.env.MINIO_ENDPOINT || 'http://localhost:9000';
   const endpointConfig = parseMinioEndpoint(endpoint);
-  
-  console.log('MinIO Config:', {
-    endpoint: endpoint,
-    host: endpointConfig.host,
-    port: endpointConfig.port,
-    useSSL: endpointConfig.useSSL
-  });
 
   return new Minio.Client({
     endPoint: endpointConfig.host,
@@ -55,14 +48,9 @@ const ensureBucketExists = async (): Promise<void> => {
     const client = getMinioClientInstance(); // Her zaman fresh client
     const bucketName = getBucketName();
     
-    console.log(`Checking bucket '${bucketName}' on MinIO...`);
-    
     const exists = await client.bucketExists(bucketName);
     if (!exists) {
       await client.makeBucket(bucketName, 'us-east-1');
-      console.log(`✅ Bucket '${bucketName}' created successfully`);
-    } else {
-      console.log(`✅ Bucket '${bucketName}' already exists`);
     }
   } catch (error) {
     console.error('❌ Error creating bucket:', error);
@@ -89,7 +77,6 @@ const makeBucketPublic = async (): Promise<void> => {
     };
 
     await client.setBucketPolicy(bucketName, JSON.stringify(policy));
-    console.log(`Bucket '${bucketName}' is now public (read-only)`);
   } catch (error) {
     console.error('Error making bucket public:', error);
     throw error;

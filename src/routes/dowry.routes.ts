@@ -1,5 +1,5 @@
 import express from 'express';
-import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, updateDowryStatus, deleteDowryImage } from '../controller/dowry.controller';
+import { createDowry, getDowries, getDowryById, updateDowry, deleteDowry, updateDowryStatus, deleteDowryImage, addDowryImage, updateDowryImage } from '../controller/dowry.controller';
 import { verifyToken } from '../middleware/verifyToken';
 import { uploadDowryImage } from '../middleware/upload';
 
@@ -76,14 +76,14 @@ const router = express.Router();
  * /api/dowry/create:
  *   post:
  *     summary: Create a new dowry
- *     description: Create a new dowry item. You can upload an image file along with the dowry data in a single request using multipart/form-data.
+ *     description: Create a new dowry item. Accepts JSON data only. To add an image, use the separate image upload endpoint after creating the dowry.
  *     tags: [Dowry]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             required:
@@ -101,10 +101,6 @@ const router = express.Router();
  *                 format: uuid
  *                 example: "550e8400-e29b-41d4-a716-446655440000"
  *                 description: "Category ID (UUID)"
- *               image:
- *                 type: string
- *                 format: binary
- *                 description: "Image file (optional). Max size: 10MB. Formats: jpg, png, etc. If provided, image will be uploaded to MinIO and saved as imageUrl."
  *               dowryPrice:
  *                 type: number
  *                 example: 5000
@@ -143,7 +139,7 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/create', verifyToken, uploadDowryImage, createDowry);
+router.post('/create', verifyToken, createDowry);
 
 /**
  * @swagger
@@ -273,7 +269,7 @@ router.get('/get/:id', verifyToken, getDowryById);
  * /api/dowry/update/{id}:
  *   put:
  *     summary: Update dowry
- *     description: Update a specific dowry. You can upload a new image file along with the dowry data using multipart/form-data. If a new image is uploaded, the old image will be deleted.
+ *     description: Update a specific dowry. Accepts JSON data only. To update the image, use the separate image update endpoint.
  *     tags: [Dowry]
  *     security:
  *       - bearerAuth: []
@@ -288,7 +284,7 @@ router.get('/get/:id', verifyToken, getDowryById);
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             properties:
@@ -303,10 +299,6 @@ router.get('/get/:id', verifyToken, getDowryById);
  *                 format: uuid
  *                 example: "550e8400-e29b-41d4-a716-446655440000"
  *                 description: "Category ID (UUID)"
- *               image:
- *                 type: string
- *                 format: binary
- *                 description: "New image file (optional). Max size: 10MB. If provided, old image will be deleted and new image will be uploaded to MinIO."
  *               dowryPrice:
  *                 type: number
  *                 example: 6000
@@ -345,7 +337,7 @@ router.get('/get/:id', verifyToken, getDowryById);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/update/:id', verifyToken, uploadDowryImage, updateDowry);
+router.put('/update/:id', verifyToken, updateDowry);
 
 /**
  * @swagger
@@ -406,6 +398,138 @@ router.put('/update/:id', verifyToken, uploadDowryImage, updateDowry);
  *               $ref: '#/components/schemas/Error'
  */
 router.patch('/status/:id', verifyToken, updateDowryStatus);
+
+/**
+ * @swagger
+ * /api/dowry/{id}/image:
+ *   post:
+ *     summary: Add image to dowry
+ *     description: Upload and add an image to a dowry item. The dowry must not already have an image. Use multipart/form-data with field name 'image'.
+ *     tags: [Dowry]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Dowry ID (UUID)
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: "Image file. Max size: 10MB. Formats: jpg, png, etc."
+ *     responses:
+ *       200:
+ *         description: Image added successfully. The imageUrl is returned in the response and automatically saved to the dowry's imageUrl column.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Image added successfully"
+ *                 imageUrl:
+ *                   type: string
+ *                   format: uri
+ *                   example: "http://5.133.102.127:9000/mydowry-images/users/.../images/..."
+ *                   description: "The public URL of the uploaded image. This URL is automatically saved to the dowry's imageUrl column."
+ *                 dowry:
+ *                   $ref: '#/components/schemas/Dowry'
+ *       400:
+ *         description: Bad request (image already exists or file missing)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Dowry not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/:id/image', verifyToken, uploadDowryImage, addDowryImage);
+
+/**
+ * @swagger
+ * /api/dowry/{id}/image:
+ *   put:
+ *     summary: Update dowry image
+ *     description: Replace the existing image of a dowry item. The old image will be deleted from MinIO and replaced with the new one. Use multipart/form-data with field name 'image'.
+ *     tags: [Dowry]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Dowry ID (UUID)
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - image
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: "New image file. Max size: 10MB. Formats: jpg, png, etc. Old image will be deleted."
+ *     responses:
+ *       200:
+ *         description: Image updated successfully. The imageUrl is returned in the response and automatically saved to the dowry's imageUrl column.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Image updated successfully"
+ *                 imageUrl:
+ *                   type: string
+ *                   format: uri
+ *                   example: "http://5.133.102.127:9000/mydowry-images/users/.../images/..."
+ *                   description: "The public URL of the uploaded image. This URL is automatically saved to the dowry's imageUrl column."
+ *                 dowry:
+ *                   $ref: '#/components/schemas/Dowry'
+ *       400:
+ *         description: Bad request (file missing)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Dowry not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.put('/:id/image', verifyToken, uploadDowryImage, updateDowryImage);
 
 /**
  * @swagger

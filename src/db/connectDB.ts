@@ -18,7 +18,7 @@ const connectDB = async (): Promise<void> => {
       database: process.env.DB_NAME,
       entities: [User, Category, Dowry, Book],
       synchronize: process.env.NODE_ENV !== 'production', // Development'ta auto-sync, production'da false
-      logging: process.env.NODE_ENV === 'development',
+      logging: false, // SQL sorgularını gösterme
       ssl: process.env.DB_SSL === 'true' ? {
         rejectUnauthorized: false
       } : false,

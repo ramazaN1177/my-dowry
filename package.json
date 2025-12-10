@@ -9,7 +9,11 @@
     "build": "npx tsc",
     "start": "node dist/server.js",
     "postinstall": "npm run build",
-    "clean-orphaned-data": "ts-node src/clean-orphaned-data.ts"
+    "clean-orphaned-data": "ts-node src/clean-orphaned-data.ts",
+    "migrate-images": "ts-node src/scripts/migrate-images-to-minio.ts",
+    "update-dowry-images": "ts-node src/scripts/update-dowry-images-from-minio.ts",
+    "clean-orphaned-images": "ts-node src/scripts/clean-orphaned-minio-images.ts",
+    "count-minio-images": "ts-node src/scripts/count-minio-images.ts"
   },
   "keywords": [],
   "author": "",

@@ -13,8 +13,8 @@ import dowryRoutes from './routes/dowry.routes';
 import categoryRoutes from './routes/category.route';
 import bookRoutes from './routes/book.routes';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables (silent mode to suppress dotenv logs)
+dotenv.config({ debug: false });
 
 // Set default NODE_ENV to development if not set
 if (!process.env.NODE_ENV) {

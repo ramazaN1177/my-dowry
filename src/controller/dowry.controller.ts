@@ -62,35 +62,8 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
         }
 
         const dowryRepository = AppDataSource.getRepository(Dowry);
-        let imageUrl: string | null = null;
 
-        // If image file is uploaded, upload to MinIO and get public URL
-        if (req.file) {
-            try {
-                const filename = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}.${req.file.mimetype.split('/')[1]}`;
-                
-                // Upload to MinIO
-                const minioPath = await MinioService.uploadFile(
-                    req.file.buffer,
-                    filename,
-                    req.file.mimetype,
-                    userId
-                );
-
-                // Get public URL
-                imageUrl = MinioService.getPublicUrl(minioPath);
-            } catch (imageError) {
-                console.error('Error uploading image:', imageError);
-                res.status(500).json({
-                    success: false,
-                    message: "Failed to upload image",
-                    error: process.env.NODE_ENV === 'development' ? (imageError as Error).message : undefined
-                });
-                return;
-            }
-        }
-
-        // Create dowry
+        // Create dowry without image (image will be added via separate endpoint)
         const dowry = dowryRepository.create({
             name,
             description: description || null,
@@ -100,7 +73,7 @@ export const createDowry = async (req: AuthRequest, res: Response) => {
             status: (status || 'not_purchased') as DowryStatus,
             userId,
             url: url || null,
-            imageUrl: imageUrl
+            imageUrl: null
         });
 
         const savedDowry = await dowryRepository.findOne({
@@ -268,45 +241,7 @@ export const updateDowry = async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        // Handle image upload if file is provided
-        if (req.file) {
-            try {
-                // Delete old image from MinIO if exists
-                if (dowry.imageUrl) {
-                    try {
-                        // Extract minioPath from imageUrl
-                        const minioPath = MinioService.extractMinioPathFromUrl(dowry.imageUrl);
-                        if (minioPath) {
-                            await MinioService.deleteFile(minioPath);
-                        }
-                    } catch (imageError) {
-                        console.error('Error deleting old image:', imageError);
-                    }
-                }
-
-                // Upload new image
-                const filename = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}.${req.file.mimetype.split('/')[1]}`;
-                const minioPath = await MinioService.uploadFile(
-                    req.file.buffer,
-                    filename,
-                    req.file.mimetype,
-                    req.userId!
-                );
-
-                // Get public URL
-                dowry.imageUrl = MinioService.getPublicUrl(minioPath);
-            } catch (imageError) {
-                console.error('Error uploading image:', imageError);
-                res.status(500).json({
-                    success: false,
-                    message: "Failed to upload image",
-                    error: process.env.NODE_ENV === 'development' ? (imageError as Error).message : undefined
-                });
-                return;
-            }
-        }
-
-        // Update allowed fields
+        // Update allowed fields (image updates are handled via separate endpoint)
         if (req.body.name !== undefined) dowry.name = req.body.name;
         if (req.body.description !== undefined) dowry.description = req.body.description;
         if (req.body.categoryId !== undefined) dowry.categoryId = req.body.categoryId;
@@ -497,6 +432,189 @@ export const deleteDowry = async (req: AuthRequest, res: Response) => {
         });
     } catch (error) {
         console.error('Delete Dowry Error:', error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        });
+    }
+}
+
+export const addDowryImage = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!req.userId) {
+            res.status(401).json({
+                success: false,
+                message: "User not authenticated"
+            });
+            return;
+        }
+
+        if (!req.file) {
+            res.status(400).json({
+                success: false,
+                message: "Image file is required"
+            });
+            return;
+        }
+
+        const dowryRepository = AppDataSource.getRepository(Dowry);
+        const dowry = await dowryRepository.findOne({
+            where: { id: req.params.id, userId: req.userId }
+        });
+
+        if (!dowry) {
+            res.status(404).json({
+                success: false,
+                message: "Dowry not found or you don't have permission to access it"
+            });
+            return;
+        }
+
+        // Check if dowry already has an image
+        if (dowry.imageUrl) {
+            res.status(400).json({
+                success: false,
+                message: "Dowry already has an image. Use PUT endpoint to update it."
+            });
+            return;
+        }
+
+        // Upload image to MinIO
+        try {
+            const filename = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}.${req.file.mimetype.split('/')[1]}`;
+            
+            // Upload to MinIO
+            const minioPath = await MinioService.uploadFile(
+                req.file.buffer,
+                filename,
+                req.file.mimetype,
+                req.userId
+            );
+
+            // Get public URL
+            const imageUrl = MinioService.getPublicUrl(minioPath);
+
+            // Update dowry with image URL
+            dowry.imageUrl = imageUrl;
+            const updatedDowry = await dowryRepository.save(dowry);
+
+            // Fetch updated dowry with relations
+            const dowryWithRelations = await dowryRepository.findOne({
+                where: { id: updatedDowry.id },
+                relations: ['category']
+            });
+
+            res.status(200).json({
+                success: true,
+                message: "Image added successfully",
+                imageUrl: imageUrl,
+                dowry: dowryWithRelations
+            });
+        } catch (imageError) {
+            console.error('Error uploading image:', imageError);
+            res.status(500).json({
+                success: false,
+                message: "Failed to upload image",
+                error: process.env.NODE_ENV === 'development' ? (imageError as Error).message : undefined
+            });
+        }
+    } catch (error) {
+        console.error('Add Dowry Image Error:', error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        });
+    }
+}
+
+export const updateDowryImage = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!req.userId) {
+            res.status(401).json({
+                success: false,
+                message: "User not authenticated"
+            });
+            return;
+        }
+
+        if (!req.file) {
+            res.status(400).json({
+                success: false,
+                message: "Image file is required"
+            });
+            return;
+        }
+
+        const dowryRepository = AppDataSource.getRepository(Dowry);
+        const dowry = await dowryRepository.findOne({
+            where: { id: req.params.id, userId: req.userId }
+        });
+
+        if (!dowry) {
+            res.status(404).json({
+                success: false,
+                message: "Dowry not found or you don't have permission to access it"
+            });
+            return;
+        }
+
+        // Delete old image from MinIO if exists
+        if (dowry.imageUrl) {
+            try {
+                // Extract minioPath from imageUrl
+                const minioPath = MinioService.extractMinioPathFromUrl(dowry.imageUrl);
+                if (minioPath) {
+                    await MinioService.deleteFile(minioPath);
+                }
+            } catch (imageError) {
+                console.error('Error deleting old image:', imageError);
+                // Continue even if deletion fails
+            }
+        }
+
+        // Upload new image to MinIO
+        try {
+            const filename = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}.${req.file.mimetype.split('/')[1]}`;
+            
+            // Upload to MinIO
+            const minioPath = await MinioService.uploadFile(
+                req.file.buffer,
+                filename,
+                req.file.mimetype,
+                req.userId
+            );
+
+            // Get public URL
+            const imageUrl = MinioService.getPublicUrl(minioPath);
+
+            // Update dowry with new image URL
+            dowry.imageUrl = imageUrl;
+            const updatedDowry = await dowryRepository.save(dowry);
+
+            // Fetch updated dowry with relations
+            const dowryWithRelations = await dowryRepository.findOne({
+                where: { id: updatedDowry.id },
+                relations: ['category']
+            });
+
+            res.status(200).json({
+                success: true,
+                message: "Image updated successfully",
+                imageUrl: imageUrl,
+                dowry: dowryWithRelations
+            });
+        } catch (imageError) {
+            console.error('Error uploading image:', imageError);
+            res.status(500).json({
+                success: false,
+                message: "Failed to upload image",
+                error: process.env.NODE_ENV === 'development' ? (imageError as Error).message : undefined
+            });
+        }
+    } catch (error) {
+        console.error('Update Dowry Image Error:', error);
         res.status(500).json({
             success: false,
             message: "Internal server error",
