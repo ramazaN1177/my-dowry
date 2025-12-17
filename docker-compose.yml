@@ -6,12 +6,21 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: mydowry-backend
-    ports:
-      - "5000:5000"
+
+    expose:
+      - "5000"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mydowry-backend.rule=Host(`api.mydowry.ramazancavus.com.tr`)"
+      - "traefik.http.routers.mydowry-backend.entrypoints=websecure"
+      - "traefik.http.routers.mydowry-backend.tls=true"
+      - "traefik.http.services.mydowry-backend.loadbalancer.server.port=5000"
+
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=5000
-      - SERVER_URL=${SERVER_URL:-https://api.mydowry.ramazancavus.com.tr}
+      - SERVER_URL=https://api.mydowry.ramazancavus.com.tr
       - JWT_SECRET=${JWT_SECRET}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
@@ -19,16 +28,18 @@ services:
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_PASS=${EMAIL_PASS}
       - EMAIL_FROM=${EMAIL_FROM}
+
     env_file:
       - .env
+
     restart: unless-stopped
+
     networks:
       - mydowry-network
+
     volumes:
-      # Persist uploaded files (if using local storage)
       - ./uploads:/app/uploads
 
 networks:
   mydowry-network:
     driver: bridge
-
