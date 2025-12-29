@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.route';
 import dowryRoutes from './routes/dowry.routes';
 import categoryRoutes from './routes/category.route';
 import bookRoutes from './routes/book.routes';
+import paymentRoutes from './routes/payment.route';
 
 // Load environment variables (silent mode to suppress dotenv logs)
 dotenv.config({ debug: false });
@@ -215,6 +216,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/dowry', dowryRoutes);
 app.use('/api/category', categoryRoutes);
 app.use('/api/book', bookRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // Basic health check route
 app.get('/', (req: Request, res: Response) => {

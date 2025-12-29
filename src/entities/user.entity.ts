@@ -20,6 +20,21 @@ export class User {
   @Column({ type: 'boolean', default: false })
   isVerified: boolean;
 
+  @Column({type:'boolean', default:false})
+  isPremium: boolean;
+
+  @Column({type:'timestamp', nullable:true})
+  premiumExpiresAt: Date | null;
+
+  @Column({type:'boolean', default:false})
+  adsDisabled: boolean;
+
+  @Column({type:'timestamp', nullable:true})
+  adsDisabledExpiresAt: Date | null;
+
+  @Column({type:'int', default:5})
+  categoryLimit: number;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   lastLogin: Date;
 

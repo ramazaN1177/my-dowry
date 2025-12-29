@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { AppDataSource } from '../db/connectDB';
 import { Category } from "../entities/category.entity";
+import { User } from "../entities/user.entity";
 import { Dowry } from "../entities/dowry.entity";
 import { Book } from "../entities/book.entity";
 import { MinioService } from '../services/minio.service';
@@ -29,7 +30,35 @@ export const addCategory = async (req: AuthRequest, res: Response) => {
             return;
         }
 
+        // Kullanıcıyı ve mevcut kategori sayısını kontrol et
+        const userRepository = AppDataSource.getRepository(User);
         const categoryRepository = AppDataSource.getRepository(Category);
+        
+        const user = await userRepository.findOne({ where: { id: req.userId } });
+        if (!user) {
+            res.status(404).json({ 
+                success: false, 
+                message: "User not found" 
+            });
+            return;
+        }
+
+        // Mevcut kategori sayısını kontrol et
+        const currentCategoryCount = await categoryRepository.count({ 
+            where: { userId: req.userId } 
+        });
+
+        // Kategori limiti kontrolü
+        if (currentCategoryCount >= user.categoryLimit) {
+            res.status(403).json({ 
+                success: false, 
+                message: `Category limit reached. Maximum ${user.categoryLimit} categories allowed. Please upgrade to add more categories.`,
+                currentCount: currentCategoryCount,
+                limit: user.categoryLimit
+            });
+            return;
+        }
+
         const category = categoryRepository.create({
             name,
             icon: icon || null,
