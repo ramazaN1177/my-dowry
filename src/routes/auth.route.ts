@@ -25,6 +25,25 @@ const router = express.Router();
  *         isVerified:
  *           type: boolean
  *           example: true
+ *         isPremium:
+ *           type: boolean
+ *           example: false
+ *         premiumExpiresAt:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           example: "2024-12-31T23:59:59.000Z"
+ *         adsDisabled:
+ *           type: boolean
+ *           example: false
+ *         adsDisabledExpiresAt:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           example: "2024-12-31T23:59:59.000Z"
+ *         categoryLimit:
+ *           type: integer
+ *           example: 5
  *         createdAt:
  *           type: string
  *           format: date-time

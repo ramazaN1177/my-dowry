@@ -6,6 +6,37 @@ const router = express.Router();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     PaymentStatus:
+ *       type: object
+ *       properties:
+ *         isPremium:
+ *           type: boolean
+ *           example: false
+ *         premiumExpiresAt:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           example: "2024-12-31T23:59:59.000Z"
+ *         adsDisabled:
+ *           type: boolean
+ *           example: false
+ *         adsDisabledExpiresAt:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           example: "2024-12-31T23:59:59.000Z"
+ *         categoryLimit:
+ *           type: integer
+ *           example: 5
+ *         currentCategoryCount:
+ *           type: integer
+ *           example: 3
+ */
+
+/**
+ * @swagger
  * /api/payment/verify:
  *   post:
  *     summary: Verify Google Play Store payment and activate package
@@ -40,8 +71,34 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Payment verified and package activated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Ads disabled successfully"
+ *                 purchase:
+ *                   type: object
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
  *       400:
  *         description: Invalid request or purchase token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid purchase token"
  *       401:
  *         description: Unauthorized
  */
@@ -58,8 +115,29 @@ router.post('/verify', verifyToken, verifyPayment);
  *     responses:
  *       200:
  *         description: Payment status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 status:
+ *                   $ref: '#/components/schemas/PaymentStatus'
  *       401:
  *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "User not authenticated"
  */
 router.get('/status', verifyToken, getPaymentStatus);
 
