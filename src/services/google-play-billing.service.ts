@@ -11,16 +11,35 @@ export class GooglePlayBillingService {
     // Google Play Developer API için service account kullanıyoruz
     let privateKey = process.env.GOOGLE_PLAY_PRIVATE_KEY;
     
-    // Farklı newline formatlarını handle et
-    if (privateKey) {
-      // Escape edilmiş newline'ları değiştir
-      privateKey = privateKey.replace(/\\n/g, '\n');
-      // Eğer newline'lar zaten varsa ama trim gerekiyorsa
-      privateKey = privateKey.trim();
-      // Doğru key formatını kontrol et
-      if (!privateKey.includes('BEGIN PRIVATE KEY')) {
-        throw new Error('Geçersiz private key formatı');
-      }
+    if (!privateKey) {
+      throw new Error('GOOGLE_PLAY_PRIVATE_KEY environment variable bulunamadı');
+    }
+    
+    // Tırnak işaretlerini kaldır (başta ve sonda)
+    privateKey = privateKey.trim().replace(/^["']|["']$/g, '');
+    
+    // Escape edilmiş newline'ları gerçek newline'lara çevir
+    privateKey = privateKey.replace(/\\n/g, '\n');
+    
+    // Tekrar trim yap (tırnak kaldırdıktan sonra)
+    privateKey = privateKey.trim();
+    
+    // Key formatını kontrol et
+    if (!privateKey.includes('BEGIN PRIVATE KEY') && !privateKey.includes('BEGIN RSA PRIVATE KEY')) {
+      throw new Error('Geçersiz private key formatı: BEGIN marker bulunamadı');
+    }
+    
+    if (!privateKey.includes('END PRIVATE KEY') && !privateKey.includes('END RSA PRIVATE KEY')) {
+      throw new Error('Geçersiz private key formatı: END marker bulunamadı');
+    }
+    
+    // Key'in başında ve sonunda newline olmasını sağla (eğer yoksa)
+    if (!privateKey.startsWith('-----')) {
+      throw new Error('Private key formatı hatalı: BEGIN marker düzgün değil');
+    }
+    
+    if (!privateKey.endsWith('-----')) {
+      throw new Error('Private key formatı hatalı: END marker düzgün değil');
     }
 
     const auth = new google.auth.GoogleAuth({
