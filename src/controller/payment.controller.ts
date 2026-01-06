@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { AppDataSource } from '../db/connectDB';
 import { User } from "../entities/user.entity";
 import { Category } from "../entities/category.entity";
-import { GooglePlayBillingService } from '../services/google-play-billing.service';
+import { BillingServiceClient } from '../services/billing-service.client';
 
 interface AuthRequest extends Request {
     userId?: string;
@@ -15,7 +15,7 @@ export enum PackageType {
     PREMIUM = 'premium'                     // Premium: 10 kategori + reklam kapama
 }
 
-const googlePlayService = new GooglePlayBillingService();
+const billingServiceClient = new BillingServiceClient();
 
 /**
  * Google Play Store ödeme doğrulama ve paket aktivasyonu
@@ -51,10 +51,10 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        // Google Play'den purchase'ı doğrula
+        // Billing service üzerinden purchase'ı doğrula
         // Subscription olup olmadığını kontrol et (premium genelde subscription)
         const isSubscription = packageType === PackageType.PREMIUM;
-        const verification = await googlePlayService.verifyPurchase(
+        const verification = await billingServiceClient.verifyPurchase(
             packageName,
             productId,
             purchaseToken,
