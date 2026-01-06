@@ -49,4 +49,4 @@ USER nodejs
 EXPOSE 5000
 
 # Start the application
-CMD ["node", "dist/server.js"]
+CMD ["node", "--openssl-legacy-provider", "dist/server.js"]
