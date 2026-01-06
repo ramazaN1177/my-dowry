@@ -12,9 +12,21 @@ export class BillingServiceClient {
   private tokenCache: { token: string; expiresAt: number } | null = null;
 
   constructor() {
-    // Internal service URL (Docker Compose network) or external URL
-    this.baseURL = process.env.BILLING_SERVICE_URL || 'http://billing-service:3001';
+    // Get URL from environment variable (required)
+    this.baseURL = process.env.BILLING_SERVICE_URL || '';
     this.jwtSecret = process.env.BILLING_SERVICE_JWT_SECRET || process.env.JWT_SECRET || '';
+    
+    // Validate required environment variable
+    if (!this.baseURL) {
+      const errorMsg = 'BILLING_SERVICE_URL environment variable is required';
+      console.error('[BillingServiceClient]', errorMsg);
+      throw new Error(errorMsg);
+    }
+    
+    // Log for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[BillingServiceClient] Initialized with URL:', this.baseURL);
+    }
     
     this.client = axios.create({
       baseURL: this.baseURL,
