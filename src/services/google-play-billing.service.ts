@@ -15,31 +15,39 @@ export class GooglePlayBillingService {
       throw new Error('GOOGLE_PLAY_PRIVATE_KEY environment variable bulunamadı');
     }
     
-    // Tırnak işaretlerini kaldır (başta ve sonda)
-    privateKey = privateKey.trim().replace(/^["']|["']$/g, '');
+    // Önce trim yap
+    privateKey = privateKey.trim();
+    
+    // Tırnak işaretlerini kaldır (başta ve sonda) - tek veya çift tırnak
+    if ((privateKey.startsWith('"') && privateKey.endsWith('"')) || 
+        (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
+      privateKey = privateKey.slice(1, -1).trim();
+    }
     
     // Escape edilmiş newline'ları gerçek newline'lara çevir
     privateKey = privateKey.replace(/\\n/g, '\n');
     
-    // Tekrar trim yap (tırnak kaldırdıktan sonra)
-    privateKey = privateKey.trim();
+    // Tüm whitespace karakterlerini normalize et (başta ve sonda)
+    privateKey = privateKey.replace(/^\s+|\s+$/g, '');
     
-    // Key formatını kontrol et
-    if (!privateKey.includes('BEGIN PRIVATE KEY') && !privateKey.includes('BEGIN RSA PRIVATE KEY')) {
-      throw new Error('Geçersiz private key formatı: BEGIN marker bulunamadı');
+    // BEGIN marker'ı bul ve key'i normalize et
+    const beginMatch = privateKey.match(/-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----/);
+    const endMatch = privateKey.match(/-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----/);
+    
+    if (!beginMatch || !endMatch) {
+      throw new Error('Geçersiz private key formatı: BEGIN veya END marker bulunamadı');
     }
     
-    if (!privateKey.includes('END PRIVATE KEY') && !privateKey.includes('END RSA PRIVATE KEY')) {
-      throw new Error('Geçersiz private key formatı: END marker bulunamadı');
-    }
+    // BEGIN ve END marker'ları arasındaki key'i al
+    const beginIndex = beginMatch.index!;
+    const endIndex = endMatch.index! + endMatch[0].length;
     
-    // Key'in başında ve sonunda newline olmasını sağla (eğer yoksa)
-    if (!privateKey.startsWith('-----')) {
-      throw new Error('Private key formatı hatalı: BEGIN marker düzgün değil');
-    }
+    // Key'i düzgün formata getir
+    privateKey = privateKey.substring(beginIndex, endIndex);
     
-    if (!privateKey.endsWith('-----')) {
-      throw new Error('Private key formatı hatalı: END marker düzgün değil');
+    // Son kontrol: Key'in düzgün formatta olduğundan emin ol
+    if (!privateKey.startsWith('-----BEGIN') || !privateKey.includes('-----END')) {
+      throw new Error('Private key formatı hatalı: Key normalize edilemedi');
     }
 
     const auth = new google.auth.GoogleAuth({
