@@ -16,17 +16,19 @@ export class BillingServiceClient {
     this.baseURL = process.env.BILLING_SERVICE_URL || '';
     this.jwtSecret = process.env.BILLING_SERVICE_JWT_SECRET || process.env.JWT_SECRET || '';
     
+    // Always log for debugging (helps in production too)
+    console.log('[BillingServiceClient] Initializing...');
+    console.log('[BillingServiceClient] BILLING_SERVICE_URL:', this.baseURL || 'NOT SET');
+    console.log('[BillingServiceClient] NODE_ENV:', process.env.NODE_ENV);
+    
     // Validate required environment variable
     if (!this.baseURL) {
-      const errorMsg = 'BILLING_SERVICE_URL environment variable is required';
-      console.error('[BillingServiceClient]', errorMsg);
+      const errorMsg = 'BILLING_SERVICE_URL environment variable is required. Please set it in your .env file or environment variables.';
+      console.error('[BillingServiceClient] ERROR:', errorMsg);
       throw new Error(errorMsg);
     }
     
-    // Log for debugging (only in development)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[BillingServiceClient] Initialized with URL:', this.baseURL);
-    }
+    console.log('[BillingServiceClient] Successfully initialized with URL:', this.baseURL);
     
     this.client = axios.create({
       baseURL: this.baseURL,
@@ -110,13 +112,21 @@ export class BillingServiceClient {
         };
       }
     } catch (error: any) {
-      console.error('Billing service error:', error);
+      console.error('[BillingServiceClient] verifyPurchase error:', {
+        message: error.message,
+        code: error.code,
+        baseURL: this.baseURL,
+        url: error.config?.url,
+        fullError: error
+      });
       
-      // Handle network errors
-      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      // Handle DNS/network errors
+      if (error.code === 'EAI_AGAIN' || error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        const errorMsg = `Cannot connect to billing service at ${this.baseURL}. Please check BILLING_SERVICE_URL environment variable.`;
+        console.error('[BillingServiceClient]', errorMsg);
         return {
           valid: false,
-          error: 'Billing service unavailable',
+          error: errorMsg,
         };
       }
 
