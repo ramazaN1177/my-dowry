@@ -1,5 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import * as jwt from 'jsonwebtoken';
+import http from 'http';
+import https from 'https';
 
 /**
  * Billing Service Client
@@ -32,10 +34,13 @@ export class BillingServiceClient {
     
     this.client = axios.create({
       baseURL: this.baseURL,
-      timeout: 10000, // 10 seconds
+      timeout: 30000, // 30 seconds (Google Play API can be slow)
       headers: {
         'Content-Type': 'application/json',
       },
+      // Add keep-alive for better connection reuse
+      httpAgent: new http.Agent({ keepAlive: true }),
+      httpsAgent: new https.Agent({ keepAlive: true }),
     });
   }
 
@@ -120,9 +125,19 @@ export class BillingServiceClient {
         fullError: error
       });
       
+      // Handle timeout errors
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        const errorMsg = `Billing service timeout: The service at ${this.baseURL} did not respond within 30 seconds. Please check if the service is running and accessible.`;
+        console.error('[BillingServiceClient]', errorMsg);
+        return {
+          valid: false,
+          error: 'Billing service timeout - service may be unavailable or slow',
+        };
+      }
+
       // Handle DNS/network errors
       if (error.code === 'EAI_AGAIN' || error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-        const errorMsg = `Cannot connect to billing service at ${this.baseURL}. Please check BILLING_SERVICE_URL environment variable.`;
+        const errorMsg = `Cannot connect to billing service at ${this.baseURL}. Please check BILLING_SERVICE_URL environment variable and ensure the service is running.`;
         console.error('[BillingServiceClient]', errorMsg);
         return {
           valid: false,
