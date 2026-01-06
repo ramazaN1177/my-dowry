@@ -89,7 +89,7 @@ export class BillingServiceClient {
     productId: string,
     purchaseToken: string,
     isSubscription: boolean = false
-  ): Promise<{ valid: boolean; purchase?: any; error?: string }> {
+  ): Promise<{ valid: boolean; purchase?: any; error?: string; details?: any }> {
     try {
       // Get JWT token
       const token = this.getToken();
@@ -105,15 +105,21 @@ export class BillingServiceClient {
         },
       });
 
+      // Log response for debugging
+      console.log('[BillingServiceClient] verifyPurchase response:', {
+        status: response.status,
+        data: response.data
+      });
+
       if (response.data.success && response.data.valid) {
         return {
           valid: true,
-          purchase: response.data.purchase,
+          purchase: response.data.purchase || response.data.data,
         };
       } else {
         return {
           valid: false,
-          error: response.data.error || 'Verification failed',
+          error: response.data.error || response.data.message || 'Verification failed',
         };
       }
     } catch (error: any) {
@@ -147,9 +153,18 @@ export class BillingServiceClient {
 
       // Handle HTTP errors
       if (error.response) {
+        const responseData = error.response.data;
+        console.error('[BillingServiceClient] HTTP Error Response:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: responseData,
+          headers: error.response.headers
+        });
+        
         return {
           valid: false,
-          error: error.response.data?.error || error.response.data?.message || 'Verification failed',
+          error: responseData?.error || responseData?.message || 'Verification failed',
+          details: responseData
         };
       }
 
