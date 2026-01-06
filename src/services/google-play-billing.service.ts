@@ -9,10 +9,24 @@ export class GooglePlayBillingService {
 
   constructor() {
     // Google Play Developer API için service account kullanıyoruz
+    let privateKey = process.env.GOOGLE_PLAY_PRIVATE_KEY;
+    
+    // Farklı newline formatlarını handle et
+    if (privateKey) {
+      // Escape edilmiş newline'ları değiştir
+      privateKey = privateKey.replace(/\\n/g, '\n');
+      // Eğer newline'lar zaten varsa ama trim gerekiyorsa
+      privateKey = privateKey.trim();
+      // Doğru key formatını kontrol et
+      if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+        throw new Error('Geçersiz private key formatı');
+      }
+    }
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL,
-        private_key: process.env.GOOGLE_PLAY_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: privateKey,
         project_id: process.env.GOOGLE_PLAY_PROJECT_ID,
       },
       scopes: ['https://www.googleapis.com/auth/androidpublisher'],
