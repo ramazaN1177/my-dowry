@@ -9,51 +9,10 @@ export class GooglePlayBillingService {
 
   constructor() {
     // Google Play Developer API için service account kullanıyoruz
-    let privateKey = process.env.GOOGLE_PLAY_PRIVATE_KEY;
-    
-    if (!privateKey) {
-      throw new Error('GOOGLE_PLAY_PRIVATE_KEY environment variable bulunamadı');
-    }
-    
-    // Önce trim yap
-    privateKey = privateKey.trim();
-    
-    // Tırnak işaretlerini kaldır (başta ve sonda) - tek veya çift tırnak
-    if ((privateKey.startsWith('"') && privateKey.endsWith('"')) || 
-        (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
-      privateKey = privateKey.slice(1, -1).trim();
-    }
-    
-    // Escape edilmiş newline'ları gerçek newline'lara çevir
-    privateKey = privateKey.replace(/\\n/g, '\n');
-    
-    // Tüm whitespace karakterlerini normalize et (başta ve sonda)
-    privateKey = privateKey.replace(/^\s+|\s+$/g, '');
-    
-    // BEGIN marker'ı bul ve key'i normalize et
-    const beginMatch = privateKey.match(/-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----/);
-    const endMatch = privateKey.match(/-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----/);
-    
-    if (!beginMatch || !endMatch) {
-      throw new Error('Geçersiz private key formatı: BEGIN veya END marker bulunamadı');
-    }
-    
-    // BEGIN ve END marker'ları arasındaki key'i al
-    const beginIndex = beginMatch.index!;
-    const endIndex = endMatch.index! + endMatch[0].length;
-    
-    // Key'i düzgün formata getir
-    privateKey = privateKey.substring(beginIndex, endIndex);
-    
-    // Son kontrol: Key'in düzgün formatta olduğundan emin ol
-    if (!privateKey.startsWith('-----BEGIN') || !privateKey.includes('-----END')) {
-      throw new Error('Private key formatı hatalı: Key normalize edilemedi');
-    }
-
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL,
-        private_key: privateKey,
+        private_key: process.env.GOOGLE_PLAY_PRIVATE_KEY?.replace(/\\n/g, '\n'),
         project_id: process.env.GOOGLE_PLAY_PROJECT_ID,
       },
       scopes: ['https://www.googleapis.com/auth/androidpublisher'],
