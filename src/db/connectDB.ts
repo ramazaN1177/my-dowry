@@ -3,6 +3,7 @@ import { User } from '../entities/user.entity';
 import { Category } from '../entities/category.entity';
 import { Dowry } from '../entities/dowry.entity';
 import { Book } from '../entities/book.entity';
+import { Purchase } from '../entities/purchase.entity';
 import { ensureBucketExists, makeBucketPublic } from '../config/minio.config';
 
 let AppDataSource: DataSource;
@@ -16,7 +17,7 @@ const connectDB = async (): Promise<void> => {
       username: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entities: [User, Category, Dowry, Book],
+      entities: [User, Category, Dowry, Book, Purchase],
       synchronize: process.env.NODE_ENV !== 'production', // Development'ta auto-sync, production'da false
       logging: false, // SQL sorgularını gösterme
       ssl: process.env.DB_SSL === 'true' ? {

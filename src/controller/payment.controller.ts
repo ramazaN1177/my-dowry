@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { AppDataSource } from '../db/connectDB';
 import { User } from "../entities/user.entity";
 import { Category } from "../entities/category.entity";
+import { Purchase } from "../entities/purchase.entity";
 import { BillingServiceClient } from '../services/billing-service.client';
 
 interface AuthRequest extends Request {
@@ -83,8 +84,55 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
         }
 
         // Token'ın daha önce kullanılıp kullanılmadığını kontrol et
-        // (Bu kısım için ayrı bir Purchase entity oluşturulabilir)
-        // Şimdilik basit bir kontrol yapıyoruz
+        const purchaseRepository = AppDataSource.getRepository(Purchase);
+        const existingPurchase = await purchaseRepository.findOne({
+            where: { purchaseToken: purchaseToken }
+        });
+
+        if (existingPurchase) {
+            // Token zaten kullanılmış
+            if (existingPurchase.userId === req.userId) {
+                // Aynı kullanıcı tarafından tekrar kullanılmaya çalışılıyor
+                res.status(400).json({
+                    success: false,
+                    message: "This purchase token has already been used",
+                    error: "Purchase token already consumed"
+                });
+                return;
+            }
+            // Farklı kullanıcı tarafından kullanılmış - ama aynı Google Play hesabı olabilir
+            // OrderId'ye göre kontrol et (aynı orderId = aynı Google Play satın alma)
+            if (verification.purchase?.orderId && existingPurchase.orderId === verification.purchase.orderId) {
+                // Aynı orderId - aynı Google Play satın alma, farklı kullanıcı kullanmaya çalışıyor
+                // Bu durumda yeni bir purchase kaydı oluştur (aynı Google Play hesabından gelen satın alma)
+                // Ama önce mevcut kullanıcının bu orderId'yi kullanıp kullanmadığını kontrol et
+                const userExistingPurchase = await purchaseRepository.findOne({
+                    where: { 
+                        userId: req.userId,
+                        orderId: verification.purchase.orderId
+                    }
+                });
+                
+                if (userExistingPurchase) {
+                    // Bu kullanıcı zaten bu orderId'yi kullanmış
+                    res.status(400).json({
+                        success: false,
+                        message: "This purchase has already been used by you",
+                        error: "Purchase already consumed"
+                    });
+                    return;
+                }
+                // Aynı orderId ama farklı kullanıcı - yeni purchase kaydı oluştur (aynı Google Play hesabı)
+            } else {
+                // Farklı orderId veya orderId yok - farklı satın alma, token zaten kullanılmış
+                res.status(400).json({
+                    success: false,
+                    message: "This purchase token has already been used by another user",
+                    error: "Purchase token already consumed"
+                });
+                return;
+            }
+        }
 
         // Paket tipine göre kullanıcıyı güncelle
         let updateMessage = '';
@@ -126,6 +174,20 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
         }
 
         await userRepository.save(user);
+
+        // Purchase kaydını oluştur (token'ın tekrar kullanılmasını önlemek için)
+        const purchase = purchaseRepository.create({
+            userId: req.userId,
+            purchaseToken: purchaseToken,
+            packageName: packageName,
+            productId: productId,
+            packageType: packageType,
+            orderId: verification.purchase?.orderId || null,
+            purchaseTimeMillis: verification.purchase?.purchaseTimeMillis || null,
+            purchaseState: verification.purchase?.purchaseState || null,
+            isSubscription: isSubscription
+        });
+        await purchaseRepository.save(purchase);
 
         const { password: _, ...userWithoutPassword } = user;
 
