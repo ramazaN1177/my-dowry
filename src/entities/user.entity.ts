@@ -21,12 +21,6 @@ export class User {
   isVerified: boolean;
 
   @Column({type:'boolean', default:false})
-  isPremium: boolean;
-
-  @Column({type:'timestamp', nullable:true})
-  premiumExpiresAt: Date | null;
-
-  @Column({type:'boolean', default:false})
   adsDisabled: boolean;
 
   @Column({type:'timestamp', nullable:true})

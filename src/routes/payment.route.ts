@@ -11,14 +11,6 @@ const router = express.Router();
  *     PaymentStatus:
  *       type: object
  *       properties:
- *         isPremium:
- *           type: boolean
- *           example: false
- *         premiumExpiresAt:
- *           type: string
- *           format: date-time
- *           nullable: true
- *           example: "2024-12-31T23:59:59.000Z"
  *         adsDisabled:
  *           type: boolean
  *           example: false
@@ -66,7 +58,7 @@ const router = express.Router();
  *                 example: "opaque-token-up-to-1500-characters"
  *               packageType:
  *                 type: string
- *                 enum: [ads_disable, category_limit, premium]
+ *                 enum: [ads_disable, category_limit]
  *                 example: "ads_disable"
  *     responses:
  *       200:

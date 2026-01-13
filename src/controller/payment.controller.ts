@@ -12,8 +12,7 @@ interface AuthRequest extends Request {
 // Paket tipleri
 export enum PackageType {
     ADS_DISABLE = 'ads_disable',           // Sadece reklamları kapat
-    CATEGORY_LIMIT = 'category_limit',      // Kategori limitini artır (5'er 5'er)
-    PREMIUM = 'premium'                     // Premium: 10 kategori + reklam kapama
+    CATEGORY_LIMIT = 'category_limit'      // Kategori limitini artır (5'er 5'er)
 }
 
 const billingServiceClient = new BillingServiceClient();
@@ -53,8 +52,8 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
         }
 
         // Billing service üzerinden purchase'ı doğrula
-        // Subscription olup olmadığını kontrol et (premium genelde subscription)
-        const isSubscription = packageType === PackageType.PREMIUM;
+        // Artık subscription yok, tüm ürünler tek seferlik (one-time purchase)
+        const isSubscription = false;
         const verification = await billingServiceClient.verifyPurchase(
             packageName,
             productId,
@@ -140,14 +139,9 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
 
         switch (packageType) {
             case PackageType.ADS_DISABLE:
-                // Sadece reklamları kapat
+                // Sadece reklamları kapat (kalıcı)
                 user.adsDisabled = true;
-                // Subscription ise expiry time'ı ayarla, değilse null (kalıcı)
-                if (isSubscription && verification.purchase?.expiryTimeMillis) {
-                    user.adsDisabledExpiresAt = new Date(verification.purchase.expiryTimeMillis);
-                } else {
-                    user.adsDisabledExpiresAt = null; // Kalıcı
-                }
+                user.adsDisabledExpiresAt = null; // Kalıcı
                 updateMessage = "Ads disabled successfully";
                 break;
 
@@ -155,21 +149,6 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
                 // Kategori limitini 5 artır
                 user.categoryLimit += 5;
                 updateMessage = `Category limit increased to ${user.categoryLimit}`;
-                break;
-
-            case PackageType.PREMIUM:
-                // Premium: 10 kategori + reklam kapama
-                user.isPremium = true;
-                user.adsDisabled = true;
-                user.categoryLimit = 10;
-                if (verification.purchase?.expiryTimeMillis) {
-                    user.premiumExpiresAt = new Date(verification.purchase.expiryTimeMillis);
-                    user.adsDisabledExpiresAt = new Date(verification.purchase.expiryTimeMillis);
-                } else {
-                    user.premiumExpiresAt = null;
-                    user.adsDisabledExpiresAt = null;
-                }
-                updateMessage = "Premium package activated successfully";
                 break;
         }
 
@@ -239,20 +218,11 @@ export const getPaymentStatus = async (req: AuthRequest, res: Response) => {
             where: { userId: req.userId } 
         });
 
-        // Premium durumunu kontrol et (expiry time varsa kontrol et)
-        const isPremiumActive = user.isPremium && 
-            (user.premiumExpiresAt === null || user.premiumExpiresAt > new Date());
-
         // Ads disabled durumunu kontrol et
         const isAdsDisabled = user.adsDisabled && 
             (user.adsDisabledExpiresAt === null || user.adsDisabledExpiresAt > new Date());
 
         // Eğer expiry time geçmişse, otomatik olarak false yap
-        if (user.premiumExpiresAt && user.premiumExpiresAt <= new Date() && user.isPremium) {
-            user.isPremium = false;
-            await userRepository.save(user);
-        }
-
         if (user.adsDisabledExpiresAt && user.adsDisabledExpiresAt <= new Date() && user.adsDisabled) {
             user.adsDisabled = false;
             await userRepository.save(user);
@@ -261,8 +231,6 @@ export const getPaymentStatus = async (req: AuthRequest, res: Response) => {
         res.status(200).json({
             success: true,
             status: {
-                isPremium: isPremiumActive,
-                premiumExpiresAt: user.premiumExpiresAt,
                 adsDisabled: isAdsDisabled,
                 adsDisabledExpiresAt: user.adsDisabledExpiresAt,
                 categoryLimit: user.categoryLimit,
