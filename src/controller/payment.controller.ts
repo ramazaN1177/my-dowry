@@ -137,6 +137,17 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
         let updateMessage = '';
         const now = new Date();
 
+        // ADS_DISABLE için: Eğer zaten aktifse tekrar satın almaya izin verme
+        // (Mobil uygulamada buton olmasa bile backend kontrolü güvenlik için önemli)
+        if (packageType === PackageType.ADS_DISABLE && user.adsDisabled) {
+            res.status(400).json({
+                success: false,
+                message: "Ads are already disabled for this account. You cannot purchase this again.",
+                error: "Feature already active"
+            });
+            return;
+        }
+
         switch (packageType) {
             case PackageType.ADS_DISABLE:
                 // Sadece reklamları kapat (kalıcı)
