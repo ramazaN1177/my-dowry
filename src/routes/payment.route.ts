@@ -1,5 +1,5 @@
 import express from 'express';
-import { verifyPayment, getPaymentStatus, PackageType } from '../controller/payment.controller';
+import { verifyPayment, getPaymentStatus, revokePayment, PackageType } from '../controller/payment.controller';
 import { verifyToken } from '../middleware/verifyToken';
 
 const router = express.Router();
@@ -132,6 +132,49 @@ router.post('/verify', verifyToken, verifyPayment);
  *                   example: "User not authenticated"
  */
 router.get('/status', verifyToken, getPaymentStatus);
+
+/**
+ * @swagger
+ * /api/payment/revoke:
+ *   post:
+ *     summary: Revoke a purchase (manual revocation for refund handling)
+ *     tags: [Payment]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - purchaseToken
+ *             properties:
+ *               purchaseToken:
+ *                 type: string
+ *                 example: "opaque-token-up-to-1500-characters"
+ *     responses:
+ *       200:
+ *         description: Package revoked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Package revoked successfully"
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Purchase not found
+ */
+router.post('/revoke', verifyToken, revokePayment);
 
 export default router;
 

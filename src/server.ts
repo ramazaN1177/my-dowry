@@ -13,6 +13,7 @@ import dowryRoutes from './routes/dowry.routes';
 import categoryRoutes from './routes/category.route';
 import bookRoutes from './routes/book.routes';
 import paymentRoutes from './routes/payment.route';
+import { getPurchaseCheckService } from './services/purchase-check.service';
 
 // Load environment variables (silent mode to suppress dotenv logs)
 dotenv.config({ debug: false });
@@ -317,6 +318,13 @@ server.listen(PORT, '0.0.0.0', async () => {
       console.log(`Swagger UI available at: http://localhost:${PORT}/api-docs`);
       console.log(`OpenAPI specification available at: http://localhost:${PORT}/v1/openapi.json`);
     }
+
+    // Purchase check service'i başlat (geri ödeme kontrolü için)
+    // Kontrol aralığı: 60 dakika (varsayılan) veya PURCHASE_CHECK_INTERVAL_MINUTES env variable'dan alınır
+    const checkIntervalMinutes = parseInt(process.env.PURCHASE_CHECK_INTERVAL_MINUTES || '60', 10);
+    const purchaseCheckService = getPurchaseCheckService();
+    purchaseCheckService.start(checkIntervalMinutes);
+    console.log(`Purchase check service started (interval: ${checkIntervalMinutes} minutes)`);
   } catch (error) {
     console.error('Failed to connect to database:', error);
     process.exit(1);

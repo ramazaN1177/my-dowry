@@ -18,6 +18,32 @@ export enum PackageType {
 const billingServiceClient = new BillingServiceClient();
 
 /**
+ * Geri ödeme durumunda paketi geri al
+ * purchaseState = 1 (Canceled) olduğunda çağrılacak
+ */
+const revokePackage = async (userId: string, packageType: PackageType) => {
+    const userRepository = AppDataSource.getRepository(User);
+    const user = await userRepository.findOne({ where: { id: userId } });
+
+    if (!user) return;
+
+    switch (packageType) {
+        case PackageType.ADS_DISABLE:
+            // Reklamları tekrar aç
+            user.adsDisabled = false;
+            user.adsDisabledExpiresAt = null;
+            break;
+
+        case PackageType.CATEGORY_LIMIT:
+            // Kategori limitini 5 azalt (minimum 5 olmalı)
+            user.categoryLimit = Math.max(5, user.categoryLimit - 5);
+            break;
+    }
+
+    await userRepository.save(user);
+};
+
+/**
  * Google Play Store ödeme doğrulama ve paket aktivasyonu
  * POST /api/payment/verify
  */
@@ -68,6 +94,34 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
                 error: verification.error
             });
             return;
+        }
+
+        // Purchase state kontrolü (geri ödeme/iptal kontrolü)
+        const purchaseState = verification.purchase?.purchaseState;
+        // purchaseState değerleri:
+        // 0 = Purchased (satın alınmış - normal)
+        // 1 = Canceled (iptal edilmiş - geri ödeme yapılmış)
+        // 2 = Pending (beklemede)
+
+        if (purchaseState !== undefined && purchaseState !== 0) {
+            // Purchase iptal edilmiş veya beklemede
+            if (purchaseState === 1) {
+                // Geri ödeme/iptal durumu
+                res.status(400).json({
+                    success: false,
+                    message: "This purchase has been canceled/refunded",
+                    error: "Purchase canceled"
+                });
+                return;
+            } else if (purchaseState === 2) {
+                // Beklemede durumu
+                res.status(400).json({
+                    success: false,
+                    message: "Purchase is pending",
+                    error: "Purchase pending"
+                });
+                return;
+            }
         }
 
         // Kullanıcıyı al
@@ -252,3 +306,60 @@ export const getPaymentStatus = async (req: AuthRequest, res: Response) => {
     }
 };
 
+/**
+ * Purchase'ı iptal et veya geri ödeme yap
+ * POST /api/payment/revoke (manuel geri alma için)
+ */
+export const revokePayment = async (req: AuthRequest, res: Response) => {
+    try {
+        const { purchaseToken } = req.body;
+
+        if (!req.userId) {
+            res.status(401).json({
+                success: false,
+                message: "User not authenticated"
+            });
+            return;
+        }
+
+        if (!purchaseToken) {
+            res.status(400).json({
+                success: false,
+                message: "Missing required field: purchaseToken"
+            });
+            return;
+        }
+
+        const purchaseRepository = AppDataSource.getRepository(Purchase);
+        const purchase = await purchaseRepository.findOne({
+            where: { purchaseToken, userId: req.userId }
+        });
+
+        if (!purchase) {
+            res.status(404).json({
+                success: false,
+                message: "Purchase not found"
+            });
+            return;
+        }
+
+        // Paketi geri al
+        await revokePackage(req.userId, purchase.packageType as PackageType);
+
+        // Purchase kaydını iptal olarak işaretle
+        purchase.purchaseState = 1; // Canceled
+        await purchaseRepository.save(purchase);
+
+        res.status(200).json({
+            success: true,
+            message: "Package revoked successfully"
+        });
+    } catch (error) {
+        console.error('Revoke Payment Error:', error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        });
+    }
+};
