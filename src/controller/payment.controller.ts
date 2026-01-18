@@ -136,6 +136,17 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
             return;
         }
 
+        // ads_disable paketi için: Kullanıcının zaten adsDisabled = true olup olmadığını kontrol et
+        // Eğer zaten satın almışsa, tekrar satın almayı engelle
+        if (packageType === PackageType.ADS_DISABLE && user.adsDisabled === true) {
+            res.status(400).json({
+                success: false,
+                message: "Reklamları kapatma paketi zaten satın alınmış. Bu paketi tekrar satın alamazsınız.",
+                error: "Package already purchased"
+            });
+            return;
+        }
+
         // Token'ın daha önce kullanılıp kullanılmadığını kontrol et
         const purchaseRepository = AppDataSource.getRepository(Purchase);
         const existingPurchase = await purchaseRepository.findOne({
